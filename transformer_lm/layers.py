@@ -93,8 +93,9 @@ def layer_norm(inputs, params, training=True):
 
 def ff_block(inputs, params, training=True):
 	W1, W2 = params['W1'], params['W2']
-	hid = jnp.matmul(inputs, W1)
-	out = leaky_relu(jnp.matmul(hid, W2), negative_slope=1e-4)
+	b1, b2 = params['b1'], params['b2']
+	hid = leaky_relu(jnp.matmul(inputs, W1) + b1, negative_slope=1e-4)
+	out = jnp.matmul(hid, W2) + b2
 	return out
 
 def test():
