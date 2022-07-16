@@ -1,4 +1,3 @@
-from xml.sax.xmlreader import InputSource
 import jax.numpy as jnp
 from jax import grad, jit, vmap, pmap
 #from jax import random
@@ -38,7 +37,7 @@ def leaky_relu(x, negative_slope=1e-2):
 	"""
 	return jnp.where(x >= 0, x, negative_slope * x)
 
-def scaled_dot_product_att(Q, K, V, training=True, mask=None):
+def scaled_dot_product_att(Q, K, V, mask=None, training=True):
 	dk = Q.shape[-1]
 	dv = V.shape[-1]
 
@@ -49,9 +48,9 @@ def scaled_dot_product_att(Q, K, V, training=True, mask=None):
 	out = jnp.matmul(attn, V)
 	return out, attn
 
-def multihead_attention(inputs, params, training=True, mask=None):
+def multihead_attention(inputs, params, training=True):
 	
-	Q, K, V = inputs
+	Q, K, V, mask = inputs
 	WQs, WKs, WVs, Wout, num_heads = params['WQs'], params['WKs'], params['WVs'], params['Wout'], params['num_heads']
 
 	q_size, k_size, v_size = Q.shape[0],K.shape[0],V.shape[0]
@@ -95,7 +94,7 @@ def layer_norm(inputs, params, training=True):
 def ff_block(inputs, params, training=True):
 	W1, W2 = params['W1'], params['W2']
 	hid = jnp.matmul(inputs, W1)
-	out = leaky_relu(jnp.matmul(hid, W2))
+	out = leaky_relu(jnp.matmul(hid, W2), negative_slope=1e-4)
 	return out
 
 def test():
@@ -126,7 +125,7 @@ def test():
 	V = np.random.rand(seq_len, dv)
 	mask = np.tril(np.ones((seq_len,seq_len)))
 
-	inputs = [Q, K, V]
+	inputs = [Q, K, V, mask]
 
 	params = {
 		'WQs':WQs,
@@ -143,7 +142,7 @@ def test():
 		'W2':W2
 	}
 
-	out, _ = multihead_attention(inputs, params, training=True, mask=mask)
+	out, _ = multihead_attention(inputs, params, training=True)
 	print(out.shape)
 	out = layer_norm(out, params, training=True)
 	print(out.shape)
