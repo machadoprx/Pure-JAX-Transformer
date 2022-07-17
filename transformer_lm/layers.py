@@ -7,39 +7,8 @@ from jax.nn import leaky_relu, softmax
 #import numpy as np
 import numpy as np
 
-'''def softmax(x, axis=-1):
-	r"""Softmax function.
-
-	Computes the function which rescales elements to the range :math:`[0, 1]`
-	such that the elements along :code:`axis` sum to :math:`1`.
-
-	.. math ::
-		\mathrm{softmax}(x) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}
-
-	Args:
-		axis: the axis or axes along which the softmax should be computed. The
-		softmax output summed across these dimensions should sum to :math:`1`.
-		Either an integer or a tuple of integers.
-	"""
-	unnormalized = jnp.exp(x - lax.stop_gradient(x.max(axis, keepdims=True)))
-	return unnormalized / unnormalized.sum(axis, keepdims=True)
-
-def leaky_relu(x, negative_slope=1e-2):
-	r"""Leaky rectified linear unit activation function.
-
-	Computes the element-wise function:
-
-	.. math::
-		\mathrm{leaky\_relu}(x) = \begin{cases}
-		x, & x \ge 0\\
-		\alpha x, & x < 0
-		\end{cases}
-
-	where :math:`\alpha` = :code:`negative_slope`.
-	"""
-	return jnp.where(x >= 0, x, negative_slope * x)'''
-
-def scaled_dot_product_att(Q, K, V, mask=None, training=True):
+def scaled_dot_product_att(inputs, params, training=True):
+	Q, K, V, mask = inputs
 	dk = Q.shape[-1]
 	dv = V.shape[-1]
 
@@ -47,12 +16,12 @@ def scaled_dot_product_att(Q, K, V, mask=None, training=True):
 	if mask is not None:
 		QK = jnp.multiply(QK, mask) # attn = attn.masked_fill(mask == 0, -1e9)
 
-	attn = dropout(softmax(QK, axis=-1), {'rate':params['rate_att'], 'broadcast_dims':()}, training=training)
+	attn = dropout(softmax(QK, axis=-1), {'rate':params['rate_att'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
 	out = jnp.matmul(attn, V)
 	return out, attn
 
 def dropout(inputs, params, training=True):
-	rate, broadcast_dims = params['rate'], params['broadcast_dims']
+	rate, broadcast_dims, rng = params['rate'], params['broadcast_dims'], params['rng']
 	if rate <= 0:
 		return inputs
 
@@ -67,7 +36,7 @@ def dropout(inputs, params, training=True):
 		broadcast_shape = list(inputs.shape)
 		for dim in broadcast_dims:
 			broadcast_shape[dim] = 1
-		mask = random.bernoulli(rng, p=keep_prob, shape=broadcast_shape)
+		mask = jax.random.bernoulli(rng, p=keep_prob, shape=broadcast_shape)
 		mask = jnp.broadcast_to(mask, inputs.shape)
 		return lax.select(mask, inputs / keep_prob, jnp.zeros_like(inputs))
 	
@@ -87,7 +56,7 @@ def multihead_attention(inputs, params, training=True):
 	Qs, Ks, Vs = jnp.transpose(Qs, axes=(1, 0, 2)), jnp.transpose(Ks, axes=(1, 0, 2)), jnp.transpose(Vs,axes=(1, 0, 2)) # (num_heads, seq_len, dx)
 	
 	mask = jnp.expand_dims(mask, axis=0)
-	out, attn = scaled_dot_product_att(Qs, Ks, Vs, training=training, mask=mask) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
+	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], params, training=training) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
 
 	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, dx)
 	out = out.reshape(q_size, num_heads * dk) # (seq_len, num_heads * dx)
@@ -117,11 +86,12 @@ def layer_norm(inputs, params, training=True):
 def ff_block(inputs, params, training=True):
 	W1, W2 = params['W1'], params['W2']
 	b1, b2 = params['b1'], params['b2']
+	in_shape = inputs.shape
 
-	hid = leaky_relu(jnp.matmul(inputs, W1) + b1, negative_slope=1e-4)
-	hid = dropout(hid, {'rate':params['rate_ff'], 'broadcast_dims':()}, training=training)
+	hid = leaky_relu(jnp.matmul(inputs.reshape((1, in_shape[0]*in_shape[1])), W1) + b1, negative_slope=1e-4)
+	hid = dropout(hid, {'rate':params['rate_ff'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
 	out = leaky_relu(jnp.matmul(hid, W2) + b2, negative_slope=1e-4)
-	return out
+	return out.reshape((in_shape[0], W2.shape[1]//in_shape[0]))
 
 def test():
 	num_heads = 6
@@ -137,8 +107,10 @@ def test():
 	WVs = np.random.rand(hid_size, num_heads * dv)
 	Wout = np.random.rand(num_heads * dv, hid_size)
 
-	W1 = np.random.rand(hid_size, hid_size)
-	W2 = np.random.rand(hid_size, hid_size)
+	W1 = np.random.rand(seq_len, hid_size)
+	W2 = np.random.rand(seq_len, hid_size)
+	b1 = np.zeros((seq_len, hid_size))
+	b2 = np.zeros((seq_len, hid_size))
 
 	gamma = np.ones((seq_len, 1))
 	beta = np.zeros((seq_len, 1))
@@ -166,14 +138,19 @@ def test():
 		'eps':eps,
 		'W1':W1,
 		'W2':W2,
-		'rate':0.2
+		'rate_att':0.2,
+		'rate_ff':0.2,
+		'rng':jax.random.PRNGKey(0),
+		'b1':b1,
+		'b2':b2,
 	}
 
 	out, _ = multihead_attention(inputs, params, training=True)
 	print(out.shape)
-	out = layer_norm(out, params, training=True)
+	out = layer_norm(out + Q, params, training=True)
 	print(out.shape)
 	out = ff_block(out, params, training=True)
 	print(out.shape)
+	print(out)
 
 test()
