@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 from jax import grad, jit, vmap, pmap
+import jax
 #from jax import random
 from jax import lax
 #import numpy as np
@@ -41,13 +42,33 @@ def scaled_dot_product_att(Q, K, V, mask=None, training=True):
 	dk = Q.shape[-1]
 	dv = V.shape[-1]
 
-	QK = jnp.matmul(Q, jnp.transpose(K, axes=(0, 2, 1))) / jnp.sqrt(dk)
+	QK = jnp.matmul(Q / jnp.sqrt(dk), jnp.transpose(K, axes=(0, 2, 1))) 
 	if mask is not None:
 		QK = jnp.multiply(QK, mask) # attn = attn.masked_fill(mask == 0, -1e9)
 	attn = softmax(QK, axis=-1)
 	out = jnp.matmul(attn, V)
 	return out, attn
 
+def dropout(inputs, params, training=True):
+	rate, broadcast_dims = params['rate'], params['broadcast_dims']
+	if rate <= 0:
+		return inputs
+
+	if rate >= 1.0:
+		return jnp.zeros_like(inputs)
+
+	keep_prob = 1.0 - rate
+
+	if not training:
+		return inputs
+	else:
+		broadcast_shape = list(inputs.shape)
+		for dim in self.broadcast_dims:
+			broadcast_shape[dim] = 1
+		mask = random.bernoulli(rng, p=keep_prob, shape=broadcast_shape)
+		mask = jnp.broadcast_to(mask, inputs.shape)
+		return lax.select(mask, inputs / keep_prob, jnp.zeros_like(inputs))
+	
 def multihead_attention(inputs, params, training=True):
 	
 	Q, K, V, mask = inputs
@@ -94,8 +115,10 @@ def layer_norm(inputs, params, training=True):
 def ff_block(inputs, params, training=True):
 	W1, W2 = params['W1'], params['W2']
 	b1, b2 = params['b1'], params['b2']
+
 	hid = leaky_relu(jnp.matmul(inputs, W1) + b1, negative_slope=1e-4)
-	out = jnp.matmul(hid, W2) + b2
+	hid = dropout(hid, params, training=training)
+	out = leaky_relu(jnp.matmul(hid, W2) + b2, negative_slope=1e-4)
 	return out
 
 def test():
