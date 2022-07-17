@@ -3,10 +3,11 @@ from jax import grad, jit, vmap, pmap
 import jax
 #from jax import random
 from jax import lax
+from jax.nn import leaky_relu, softmax
 #import numpy as np
 import numpy as np
 
-def softmax(x, axis=-1):
+'''def softmax(x, axis=-1):
 	r"""Softmax function.
 
 	Computes the function which rescales elements to the range :math:`[0, 1]`
@@ -36,7 +37,7 @@ def leaky_relu(x, negative_slope=1e-2):
 
 	where :math:`\alpha` = :code:`negative_slope`.
 	"""
-	return jnp.where(x >= 0, x, negative_slope * x)
+	return jnp.where(x >= 0, x, negative_slope * x)'''
 
 def scaled_dot_product_att(Q, K, V, mask=None, training=True):
 	dk = Q.shape[-1]
@@ -45,7 +46,8 @@ def scaled_dot_product_att(Q, K, V, mask=None, training=True):
 	QK = jnp.matmul(Q / jnp.sqrt(dk), jnp.transpose(K, axes=(0, 2, 1))) 
 	if mask is not None:
 		QK = jnp.multiply(QK, mask) # attn = attn.masked_fill(mask == 0, -1e9)
-	attn = softmax(QK, axis=-1)
+
+	attn = dropout(softmax(QK, axis=-1), {'rate':params['rate_att'], 'broadcast_dims':()}, training=training)
 	out = jnp.matmul(attn, V)
 	return out, attn
 
@@ -63,7 +65,7 @@ def dropout(inputs, params, training=True):
 		return inputs
 	else:
 		broadcast_shape = list(inputs.shape)
-		for dim in self.broadcast_dims:
+		for dim in broadcast_dims:
 			broadcast_shape[dim] = 1
 		mask = random.bernoulli(rng, p=keep_prob, shape=broadcast_shape)
 		mask = jnp.broadcast_to(mask, inputs.shape)
@@ -117,7 +119,7 @@ def ff_block(inputs, params, training=True):
 	b1, b2 = params['b1'], params['b2']
 
 	hid = leaky_relu(jnp.matmul(inputs, W1) + b1, negative_slope=1e-4)
-	hid = dropout(hid, params, training=training)
+	hid = dropout(hid, {'rate':params['rate_ff'], 'broadcast_dims':()}, training=training)
 	out = leaky_relu(jnp.matmul(hid, W2) + b2, negative_slope=1e-4)
 	return out
 
@@ -163,7 +165,8 @@ def test():
 		'mov_var':mov_var,
 		'eps':eps,
 		'W1':W1,
-		'W2':W2
+		'W2':W2,
+		'rate':0.2
 	}
 
 	out, _ = multihead_attention(inputs, params, training=True)
