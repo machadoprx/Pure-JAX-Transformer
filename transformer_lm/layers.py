@@ -3,6 +3,7 @@ import jax.numpy as jnp
 #from jax import grad, jit, vmap, pmap
 from jax import lax
 from jax.nn import softmax, gelu
+from initializer import *
 
 def scaled_dot_product_att(inputs, params, training=True):
 	Q, K, V, mask = inputs
@@ -14,7 +15,7 @@ def scaled_dot_product_att(inputs, params, training=True):
 		mask = jnp.expand_dims(mask, axis=0)
 		QK = QK + mask # attn = attn.masked_fill(mask == 0, -1e9)
 
-	attn = dropout(softmax(QK, axis=-1), {'rate':params['rate_att'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
+	attn = dropout(softmax(QK, axis=-1), {'rate':params['rate'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
 	out = jnp.matmul(attn, V)
 	return out, attn
 
@@ -85,11 +86,11 @@ def ff_block(inputs, params, training=True):
 	b1, b2 = params['b1'], params['b2']
 
 	hid = gelu(jnp.matmul(inputs, W1) + b1)
-	hid = dropout(hid, {'rate':params['rate_ff'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
+	hid = dropout(hid, {'rate':params['rate'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
 	out = gelu(jnp.matmul(hid, W2) + b2)
 	return out
 
-def test():
+'''def test():
 	num_heads = 6
 	seq_len = 5
 	dk = 128
@@ -100,62 +101,23 @@ def test():
 	rnd_range = 1 / hid_size ** 0.5
 	rng = jax.random.PRNGKey(0)
 
-	WQs = jax.random.uniform(rng, (hid_size, num_heads * dk), minval=-rnd_range, maxval=rnd_range)
-	WKs = jax.random.uniform(rng, (hid_size, num_heads * dk), minval=-rnd_range, maxval=rnd_range)
-	WVs = jax.random.uniform(rng, (hid_size, num_heads * dv), minval=-rnd_range, maxval=rnd_range)
-	Wout = jax.random.uniform(rng, (num_heads * dv, hid_size), minval=-rnd_range, maxval=rnd_range)
-
-	W1 = jax.random.uniform(rng, (hid_size, hid_size), minval=-rnd_range, maxval=rnd_range)
-	W2 = jax.random.uniform(rng, (hid_size, hid_size), minval=-rnd_range, maxval=rnd_range)
-	b1 = jnp.zeros((1, hid_size))
-	b2 = jnp.zeros((1, hid_size))
-
-	gamma = jnp.ones((seq_len, 1))
-	beta = jnp.zeros((seq_len, 1))
-	mov_mean = jnp.zeros((seq_len, 1))
-	mov_var = jnp.ones((seq_len, 1))
-	eps = 1e-9
+	params_mha = get_mha_params(rng, dk, dv, hid_size, num_heads, 0.2)
+	params_ff_block = get_ff_block_params(rng, hid_size, hid_size, 0.2)
+	params_ln = get_ln_params(seq_len, eps=1e-9)
 
 	Q = jax.random.uniform(rng, (seq_len, dk), minval=-rnd_range, maxval=rnd_range)
 	K = jax.random.uniform(rng, (seq_len, dk), minval=-rnd_range, maxval=rnd_range)
 	V = jax.random.uniform(rng, (seq_len, dk), minval=-rnd_range, maxval=rnd_range)
 
-	mask_or = jnp.tril(jnp.ones((seq_len,seq_len)))
-	mask = mask_or.at[jnp.where(mask_or == 1.0)].set(0.0)
-	mask = mask.at[jnp.where(mask_or == 0.0)].set(-1e9)
-	print(mask)
+	mask = None
 
 	inputs = [Q, K, V, mask]
 
-	params = {
-		'WQs':WQs,
-		'WKs':WKs,
-		'WVs':WVs,
-		'Wout':Wout,
-		'num_heads':num_heads,
-		'gamma':gamma,
-		'beta':beta,
-		'mov_mean':mov_mean,
-		'mov_var':mov_var,
-		'eps':eps,
-		'W1':W1,
-		'W2':W2,
-		'rate_att':0.2,
-		'rate_ff':0.2,
-		'rng':rng,
-		'b1':b1,
-		'b2':b2,
-	}
+	out, _ = multihead_attention(inputs, params_mha, training=True)
+	print(out.shape)
+	out = layer_norm(out + Q, params_ln, training=True)
+	print(out.shape)
+	out = ff_block(out, params_ff_block, training=True)
+	print(out.shape)'''
 
-	out, _ = multihead_attention(inputs, params, training=True)
-	print(out.shape)
-	
-	#print(jnp.mean(out, axis=axes, keepdims=True))
-	#print(axes)
-	out = layer_norm(out + Q, params, training=True)
-	print(out.shape)
-	out = ff_block(out, params, training=True)
-	print(out.shape)
-	print(out)
-
-test()
+#test()

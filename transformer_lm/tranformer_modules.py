@@ -12,9 +12,9 @@ def encoder_block(inputs, params, training=True):
     mha_res = layer_norm(mha + inputs[0], params_layer_norm_1, training=training)
 
     out = ff_block(mha_res, params_ff_block, training=training)
-    out_res = layer_norm(out + mha_res, params_layer_norm_2, training=training)
+    out = layer_norm(out + mha_res, params_layer_norm_2, training=training)
 
-    return out_res
+    return out
 
 def decoder_block(inputs, params, training=True):
     
