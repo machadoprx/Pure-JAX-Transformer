@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 #from jax import grad, jit, vmap, pmap
 from jax import lax
 from jax.nn import softmax, gelu
@@ -15,12 +16,14 @@ def scaled_dot_product_att(inputs, params, training=True):
 		mask = jnp.expand_dims(mask, axis=0)
 		QK = QK + mask # attn = attn.masked_fill(mask == 0, -1e9)
 
-	attn = dropout(softmax(QK, axis=-1), {'rate':params['rate'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
+	attn = dropout(softmax(QK, axis=-1), params, training=training)
 	out = jnp.matmul(attn, V)
 	return out, attn
 
 def dropout(inputs, params, training=True):
-	rate, broadcast_dims, rng = params['rate'], params['broadcast_dims'], params['rng']
+	rate, broadcast_dims = params['rate'], ()
+	seed = np.random.randint((1 << 63) - 1)
+	rng = jax.random.PRNGKey(seed)
 	if rate <= 0:
 		return inputs
 
@@ -86,38 +89,6 @@ def ff_block(inputs, params, training=True):
 	b1, b2 = params['b1'], params['b2']
 
 	hid = gelu(jnp.matmul(inputs, W1) + b1)
-	hid = dropout(hid, {'rate':params['rate'], 'broadcast_dims':(), 'rng':params['rng']}, training=training)
+	hid = dropout(hid, params, training=training)
 	out = gelu(jnp.matmul(hid, W2) + b2)
 	return out
-
-'''def test():
-	num_heads = 6
-	seq_len = 5
-	dk = 128
-	dv = 128
-	hid_size = 128
-	#in_feats = 128
-	bs = 2
-	rnd_range = 1 / hid_size ** 0.5
-	rng = jax.random.PRNGKey(0)
-
-	params_mha = get_mha_params(rng, dk, dv, hid_size, num_heads, 0.2)
-	params_ff_block = get_ff_block_params(rng, hid_size, hid_size, 0.2)
-	params_ln = get_ln_params(seq_len, eps=1e-9)
-
-	Q = jax.random.uniform(rng, (seq_len, dk), minval=-rnd_range, maxval=rnd_range)
-	K = jax.random.uniform(rng, (seq_len, dk), minval=-rnd_range, maxval=rnd_range)
-	V = jax.random.uniform(rng, (seq_len, dk), minval=-rnd_range, maxval=rnd_range)
-
-	mask = None
-
-	inputs = [Q, K, V, mask]
-
-	out, _ = multihead_attention(inputs, params_mha, training=True)
-	print(out.shape)
-	out = layer_norm(out + Q, params_ln, training=True)
-	print(out.shape)
-	out = ff_block(out, params_ff_block, training=True)
-	print(out.shape)'''
-
-#test()
