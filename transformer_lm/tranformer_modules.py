@@ -1,11 +1,4 @@
-import jax.numpy as jnp
 from layers import layer_norm, multihead_attention, ff_block
-import jax
-import jax.numpy as jnp
-import numpy as np
-#from jax import grad, jit, vmap, pmap
-from jax import lax
-from jax.nn import softmax, gelu
 from initializer import *
 
 def encoder_block(inputs, params, training=True):

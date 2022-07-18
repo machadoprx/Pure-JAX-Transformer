@@ -1,23 +1,27 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
-#from jax import grad, jit, vmap, pmap
-from jax import lax
+from jax import lax, jit
 from jax.nn import softmax, gelu
 from initializer import *
+
+def embed(inputs, params):
+	seq, pos_enc = inputs
+	W = params['W']
+	out = jnp.stack([W[:, x] + pos_enc[i] for x, i in zip(seq, range(len(seq)))], axis=0)
+	return out
 
 def scaled_dot_product_att(inputs, params, training=True):
 	Q, K, V, mask = inputs
 	dk = Q.shape[-1]
-	dv = V.shape[-1]
 
-	QK = jnp.matmul(Q, jnp.transpose(K, axes=(0, 2, 1))) / jnp.sqrt(dk)
+	QK = jit(jnp.matmul)(Q, jnp.transpose(K, axes=(0, 2, 1))) / jnp.sqrt(dk)
 	if mask is not None:
 		mask = jnp.expand_dims(mask, axis=0)
 		QK = QK + mask # attn = attn.masked_fill(mask == 0, -1e9)
 
 	attn = dropout(softmax(QK, axis=-1), params, training=training)
-	out = jnp.matmul(attn, V)
+	out = jit(jnp.matmul)(attn, V)
 	return out, attn
 
 def dropout(inputs, params, training=True):
@@ -51,18 +55,18 @@ def multihead_attention(inputs, params, training=True):
 	dk = Q.shape[-1]
 	dv = V.shape[-1]
 
-	Qs = jnp.matmul(Q, WQs).reshape((q_size, num_heads, dk))
-	Ks = jnp.matmul(K, WKs).reshape((k_size, num_heads, dk))
-	Vs = jnp.matmul(V, WVs).reshape((v_size, num_heads, dv))
+	Qs = jit(jnp.matmul)(Q, WQs).reshape((q_size, num_heads, dk))
+	Ks = jit(jnp.matmul)(K, WKs).reshape((k_size, num_heads, dk))
+	Vs = jit(jnp.matmul)(V, WVs).reshape((v_size, num_heads, dv))
 
 	Qs, Ks, Vs = jnp.transpose(Qs, axes=(1, 0, 2)), jnp.transpose(Ks, axes=(1, 0, 2)), jnp.transpose(Vs,axes=(1, 0, 2)) # (num_heads, seq_len, dx)
 	
 	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], params, training=training) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
 
 	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, dx)
-	out = out.reshape(q_size, num_heads * dk) # (seq_len, num_heads * dx)
+	out = out.reshape(q_size, num_heads * dv) # (seq_len, num_heads * dx)
 
-	out_proj = jnp.matmul(out, Wout)
+	out_proj = jit(jnp.matmul)(out, Wout)
 
 	return out_proj, attn
 
@@ -88,7 +92,7 @@ def ff_block(inputs, params, training=True):
 	W1, W2 = params['W1'], params['W2']
 	b1, b2 = params['b1'], params['b2']
 
-	hid = gelu(jnp.matmul(inputs, W1) + b1)
+	hid = jit(gelu)(jit(jnp.matmul)(inputs, W1) + b1)
 	hid = dropout(hid, params, training=training)
-	out = gelu(jnp.matmul(hid, W2) + b2)
+	out = jit(gelu)(jit(jnp.matmul)(hid, W2) + b2)
 	return out

@@ -2,9 +2,9 @@ import jax
 import jax.numpy as jnp
 
 def get_linear_params(rng, in_feat, out_feat, bias=False):
-	rnd_range = 1 / in_feat ** 0.5
 	rng, subkey = jax.random.split(rng)
-	weights = jax.random.uniform(subkey, (in_feat, out_feat), minval=-rnd_range, maxval=rnd_range)
+	init = jax.nn.initializers.glorot_normal()
+	weights = init(subkey, (in_feat, out_feat), jnp.float32)
 	biases = None
 	if bias:
 		biases = jnp.zeros((1, out_feat))
