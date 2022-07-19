@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+from jax.nn import softmax
 from layers import *
 from tranformer_modules import *
 
@@ -21,6 +22,6 @@ def forward_transformer(inputs, params, training=True):
 	for i in range(n_layers):
 		out_dec = decoder_block([out_dec, out_dec, out_dec, out_enc, mask], params['decoder'][i], training=training)
 
-	out = jnp.matmul(out_dec, params['linear_out_weights']) + params['linear_out_bias']
+	out = jnp.matmul(out_dec, params['embed']['W'])
 
 	return out

@@ -32,11 +32,17 @@ def get_ln_params(seq_len, eps=1e-9):
 	mov_var = jnp.ones((seq_len, 1))
 	return {'gamma':gamma, 'beta':beta, 'mov_mean':mov_mean, 'mov_var':mov_var, 'eps':eps}
 
-def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers, ff_out, rate_att=0.2, rate_ff=0.2, eps=1e-9):
+def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers, vocab_size, ff_out, rate_att=0.2, rate_ff=0.2, eps=1e-9):
 	params = {
 		'encoder':{},
 		'decoder':{}
 	}
+	rng, subkey = jax.random.split(rng)
+	init = jax.nn.initializers.glorot_normal()
+
+	params['embed'] = {}
+	params['embed']['W'] = init(subkey, (hid_size, vocab_size), jnp.float32)
+
 	for i in range(num_layers):
 		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads, rate_att)
 		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_out, rate_ff)
