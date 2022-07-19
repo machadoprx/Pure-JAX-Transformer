@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 def get_linear_params(rng, in_feat, out_feat, bias=False):
 	rng, subkey = jax.random.split(rng)
@@ -32,14 +33,16 @@ def get_ln_params(seq_len, eps=1e-9):
 	return {'gamma':gamma, 'beta':beta, 'mov_mean':mov_mean, 'mov_var':mov_var, 'eps':eps}
 
 def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers, ff_out, rate_att=0.2, rate_ff=0.2, eps=1e-9):
-	params = {}
+	params = {
+		'encoder':{},
+		'decoder':{}
+	}
 	for i in range(num_layers):
-		params[i] = {}
 		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads, rate_att)
 		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_out, rate_ff)
 		params_ln_enc_1 = get_ln_params(seq_len, eps=eps)
 		params_ln_enc_2 = get_ln_params(seq_len, eps=eps)
-		params[i]['encoder'] = {
+		params['encoder'][i] = {
 			'mha':params_mha_enc,
 			'ff_block':params_ff_block_enc,
 			'ln_1':params_ln_enc_1,
@@ -53,7 +56,7 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers
 		params_ln_dec_2 = get_ln_params(seq_len, eps=eps)
 		params_ln_dec_3 = get_ln_params(seq_len, eps=eps)
 
-		params[i]['decoder'] = {
+		params['decoder'][i] = {
 			'mha_1':params_mha_dec_1,
 			'mha_2':params_mha_dec_2,
 			'ff_block':params_ff_block_dec,
@@ -63,6 +66,29 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers
 		}
 	return params
 
+def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
 
+    def cal_angle(position, hid_idx):
+        return position / np.power(10000, 2 * (hid_idx // 2) / d_hid)
+
+    def get_posi_angle_vec(position):
+        return [cal_angle(position, hid_j) for hid_j in range(d_hid)]
+
+    sinusoid_table = np.array([get_posi_angle_vec(pos_i) for pos_i in range(n_position)])
+
+    sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
+    sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
+
+    if padding_idx is not None:
+        # zero vector for padding dimension
+        sinusoid_table[padding_idx] = 0.
+
+    return jnp.array(sinusoid_table)
+
+def get_causal_mask(seq_len):
+	mask_tmp = jnp.tril(jnp.ones((seq_len,seq_len)))
+	mask_causal = mask_tmp.at[jnp.where(mask_tmp == 1)].set(0)
+	mask_causal = mask_causal.at[jnp.where(mask_tmp == 0)].set(-1e9)
+	return mask_causal
 	
 
