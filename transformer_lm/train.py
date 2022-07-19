@@ -12,7 +12,7 @@ from optimizer import *
 def train_step(inputs, params, vocab_size):
 	return lm_loss_fn(inputs, params, forward_transformer, vocab_size, training=True)
 
-def train_loop(batched_inputs, params, vocab_size, epochs, lr):
+def train_loop(batched_inputs, params, seq_len, vocab_size, epochs, lr):
 	mask_ce = jnp.tril(jnp.ones((seq_len,seq_len)))
 	for e in range(epochs):
 		epoch_loss = 0.0
@@ -20,7 +20,7 @@ def train_loop(batched_inputs, params, vocab_size, epochs, lr):
 		for batch, target in batched_inputs:
 			loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0, 0, None], None, None)) \
 																	([batch, target, target, mask_ce], params, vocab_size)
-			epoch_loss += loss
+			epoch_loss += jnp.mean(loss)
 			params = optimizer_sgd_tr(params, grads, ['eps', 'rate', 'mov_mean', 'mov_var', 'num_heads'], lr)
 		print(f'Epoch: {e} - Loss: {epoch_loss/len(batched_inputs)}')
 	return params
@@ -53,6 +53,6 @@ def debug():
 
 	print(list(zip(Q, targets))[0])
 
-	params = train_loop(list(zip(Q, targets)), params, vocab_size, epochs, lr)
+	params = train_loop(list(zip(Q, targets)), params, seq_len, vocab_size, epochs, lr)
 
 debug()
