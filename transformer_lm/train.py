@@ -1,14 +1,14 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax import grad
+from jax import grad, vmap
 from initializer import *
 from tranformer_modules import *
 from forward import *
 from loss import *
 from layers import *
 
-def train_loop(inputs, params, vocab_size):
+def train_step(inputs, params, vocab_size):
 	
 	loss = lm_loss_fn(inputs, params, forward_transformer, vocab_size, training=True)
 	return loss
@@ -41,40 +41,12 @@ params['linear_out_bias'] = jnp.zeros((1, vocab_size))
 #print(params.keys())
 #quit()
 
-Q = jnp.array([i+1 for i in range(seq_len)])
-Q_dec = jnp.array([0, 4, 3, 2])
-targets = jnp.array([4, 3, 2, 1])
+Q = jnp.array([[i+1 for i in range(seq_len)], [i+1 for i in range(seq_len)]])
+Q_dec = jnp.array([[0, 4, 3, 2], [0, 4, 3, 2]])
+targets = jnp.array([[4, 3, 2, 1], [4, 3, 2, 1]])
 mask_tmp = jnp.tril(jnp.ones((seq_len,seq_len)))
 
-loss = train_loop([Q, Q_dec, targets, mask_tmp], params, vocab_size)
-print(loss)
-print(grad(train_loop, 1, allow_int=True)([Q, Q_dec, targets, mask_tmp], params, vocab_size))
-
-'''mask_tmp = jnp.tril(jnp.ones((seq_len,seq_len)))
-mask_causal = mask_tmp.at[jnp.where(mask_tmp == 1)].set(0)
-mask_causal = mask_causal.at[jnp.where(mask_tmp == 0)].set(-1e9)
-#print(mask_causal)
-rng, emb_params, _ = get_linear_params(rng, 20, 4, bias=False)
-Q = jnp.array([i+1 for i in range(4)])
-pos_enc = get_sinusoid_encoding_table(seq_len, hid_size, padding_idx=None)
-Q = embed([Q, pos_enc], {'W':emb_params})
-print(pos_enc)
-print(Q)
-print(Q.shape)
-#quit()
-mask = None
-
-inputs = [Q, Q, Q, mask]
-
-out = encoder_block(inputs, params['encoder'], training=True)
-print(out)
-print(out.shape)
-Q_dec = jnp.array([i for i in range(4)])
-Q_dec = embed([Q_dec, pos_enc], {'W':emb_params})
-
-print(Q)
-print(Q_dec)
-inputs_decoder = [Q_dec, Q_dec, Q_dec, out, mask_causal]
-out_dec = decoder_block(inputs_decoder, params['decoder'], training=True)
-print(out_dec)
-print(out_dec.shape)'''
+#loss = vmap(train_loop, in_axes=([0, 0, 0, None], None, None))([Q, Q_dec, targets, mask_tmp], params, vocab_size)
+#print(loss)
+loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0, 0, None], None, None))([Q, Q_dec, targets, mask_tmp], params, vocab_size)
+print(jnp.mean(grads['linear_out_weights'], axis=0).shape)
