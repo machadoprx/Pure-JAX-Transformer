@@ -70,17 +70,19 @@ def multihead_attention(inputs, params, training=True):
 
 	return out_proj, attn
 
+#TODO layer norm not updates mov_mean and mov_variance due to not referenced args (copys)
 def layer_norm(inputs, params, training=True):
 	
 	gamma, beta, mov_mean, mov_var, eps = params['gamma'], params['beta'], params['mov_mean'], params['mov_var'], params['eps']
 
 	mean = inputs.mean(axis=-1, keepdims=True)
 	var = ((inputs - mean) ** 2).mean(axis=-1, keepdims=True)
+	new_mov_mean, new_mov_var = None, None
 
 	if training:
 		out = (inputs-mean)/jnp.sqrt(var + eps)
-		params['mov_mean'] = (mov_mean * 0.9) + (mean * 0.1)
-		params['mov_var'] = (mov_var * 0.9) + (var * 0.1)
+		new_mov_mean = (mov_mean * 0.9) + (mean * 0.1)
+		new_mov_var = (mov_var * 0.9) + (var * 0.1)
 	else:
 		out = (inputs-mov_mean)/jnp.sqrt(mov_var + eps)
 

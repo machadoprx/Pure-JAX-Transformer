@@ -22,9 +22,11 @@ def train_loop(batched_inputs, params, seq_len, vocab_size, epochs, lr):
 																	([batch, target, target, mask_ce], params, vocab_size)
 			epoch_loss += jnp.mean(loss)
 			params = optimizer_sgd_tr(params, grads, ['eps', 'rate', 'mov_mean', 'mov_var', 'num_heads'], lr)
-		print(f'Epoch: {e} - Loss: {epoch_loss/len(batched_inputs)}')
+		print(f'Epoch: {e + 1} - Loss: {epoch_loss/len(batched_inputs)}')
 	return params
 
+def batched_inference(inputs, params, vocab_size):
+	pass
 
 def debug():
 	num_heads = 2
@@ -32,8 +34,8 @@ def debug():
 	dk = 20
 	dv = 20
 	hid_size = 20
-	vocab_size = 10
-	epochs = 100
+	vocab_size = 105
+	epochs = 125
 	lr = 0.01
 	embed_size = 20
 	#in_feats = 128
@@ -46,13 +48,18 @@ def debug():
 
 	rng, subkey = jax.random.split(rng)
 
-	Q = jnp.array([[[1,2,3,4], [1,2,3,4]], [[1,2,3,4], [1,2,3,4]]])
+	Q = jnp.array([[[1,2,3,4], [101,102,103,104]], [[7,8,9,10], [17,18,19,20]]])
 
-	targets = jnp.array([[[4, 3, 2, 1], [4, 3, 2, 1]], [[4, 3, 2, 1], [4, 3, 2, 1]]])
+	targets = jnp.array([[[4, 3, 2, 1], [104,103,102,101]], [[10,9,8,7], [20,19,18,17]]])
 	mask_tmp = jnp.tril(jnp.ones((seq_len,seq_len)))
 
 	print(list(zip(Q, targets))[0])
 
 	params = train_loop(list(zip(Q, targets)), params, seq_len, vocab_size, epochs, lr)
+	
+	print(jnp.argmax(softmax(forward_transformer([[16], [0]], params, training=False), axis=-1), axis=-1))
+
+	#print(params['encoder'][0]['ln_1'])
+
 
 debug()
