@@ -11,13 +11,13 @@ def get_linear_params(rng, in_feat, out_feat, bias=False):
 		biases = jnp.zeros((1, out_feat))
 	return rng, weights, biases
 
-def get_ff_block_params(rng, in_feat, out_feat, rate):
+def get_ff_block_params(rng, in_feat, out_feat):
 	rng, w1, b1 = get_linear_params(rng, in_feat, out_feat, bias=True)
 	rng, w2, b2 = get_linear_params(rng, out_feat, out_feat, bias=True)
 	rng, _ = jax.random.split(rng)
 	return rng, {'W1':w1, 'W2':w2, 'b1':b1, 'b2':b2}
 
-def get_mha_params(rng, dk, dv, out_features, num_heads, rate):
+def get_mha_params(rng, dk, dv, out_features, num_heads):
 	rng, WQs, _ = get_linear_params(rng, out_features, num_heads * dk, bias=False)
 	rng, WKs, _ = get_linear_params(rng, out_features, num_heads * dk, bias=False)
 	rng, WVs, _ = get_linear_params(rng, out_features, num_heads * dv, bias=False)
@@ -25,12 +25,12 @@ def get_mha_params(rng, dk, dv, out_features, num_heads, rate):
 	rng, _ = jax.random.split(rng)
 	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout, 'num_heads':num_heads}
 
-def get_ln_params(seq_len, eps=1e-9):
+def get_ln_params(seq_len):
 	gamma = jnp.ones((seq_len, 1))
 	beta = jnp.zeros((seq_len, 1))
 	return {'gamma':gamma, 'beta':beta}
 
-def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers, vocab_size, ff_out, rate_att=0.2, rate_ff=0.2, eps=1e-9):
+def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers, vocab_size, ff_out):
 	params = {'num_layers':num_layers}
 	rng, subkey = jax.random.split(rng)
 	init = jax.nn.initializers.glorot_normal()
@@ -39,21 +39,21 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers
 	params['embed']['W'] = init(subkey, (hid_size, vocab_size), jnp.float32)
 
 	for i in range(num_layers):
-		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads, rate_att)
-		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_out, rate_ff)
-		params_ln_enc_1 = get_ln_params(seq_len, eps=eps)
-		params_ln_enc_2 = get_ln_params(seq_len, eps=eps)
+		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads)
+		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_out)
+		params_ln_enc_1 = get_ln_params(seq_len)
+		params_ln_enc_2 = get_ln_params(seq_len)
 		params[f'encoder_{i}_mha'] = params_mha_enc
 		params[f'encoder_{i}_ff_block'] = params_ff_block_enc
 		params[f'encoder_{i}_ln_1'] = params_ln_enc_1
 		params[f'encoder_{i}_ln_2'] = params_ln_enc_2
 
-		rng, params_mha_dec_1 = get_mha_params(rng, dk, dv, hid_size, num_heads, rate_att)
-		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, hid_size, hid_size, num_heads, rate_att)
-		rng, params_ff_block_dec = get_ff_block_params(rng, hid_size, ff_out, rate_ff)
-		params_ln_dec_1 = get_ln_params(seq_len, eps=eps)
-		params_ln_dec_2 = get_ln_params(seq_len, eps=eps)
-		params_ln_dec_3 = get_ln_params(seq_len, eps=eps)
+		rng, params_mha_dec_1 = get_mha_params(rng, dk, dv, hid_size, num_heads)
+		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, hid_size, hid_size, num_heads)
+		rng, params_ff_block_dec = get_ff_block_params(rng, hid_size, ff_out)
+		params_ln_dec_1 = get_ln_params(seq_len)
+		params_ln_dec_2 = get_ln_params(seq_len)
+		params_ln_dec_3 = get_ln_params(seq_len)
 
 		params[f'decoder_{i}_mha_1'] = params_mha_dec_1
 		params[f'decoder_{i}_mha_2'] = params_mha_dec_2
