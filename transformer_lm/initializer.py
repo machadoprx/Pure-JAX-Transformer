@@ -15,7 +15,7 @@ def get_ff_block_params(rng, in_feat, out_feat, rate):
 	rng, w1, b1 = get_linear_params(rng, in_feat, out_feat, bias=True)
 	rng, w2, b2 = get_linear_params(rng, out_feat, out_feat, bias=True)
 	rng, _ = jax.random.split(rng)
-	return rng, {'W1':w1, 'W2':w2, 'b1':b1, 'b2':b2, 'rate':rate}
+	return rng, {'W1':w1, 'W2':w2, 'b1':b1, 'b2':b2}
 
 def get_mha_params(rng, dk, dv, out_features, num_heads, rate):
 	rng, WQs, _ = get_linear_params(rng, out_features, num_heads * dk, bias=False)
@@ -23,20 +23,15 @@ def get_mha_params(rng, dk, dv, out_features, num_heads, rate):
 	rng, WVs, _ = get_linear_params(rng, out_features, num_heads * dv, bias=False)
 	rng, Wout, _ = get_linear_params(rng, num_heads * dv, out_features, bias=False)
 	rng, _ = jax.random.split(rng)
-	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout, 'num_heads':num_heads, 'rate':rate}
+	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout, 'num_heads':num_heads}
 
 def get_ln_params(seq_len, eps=1e-9):
 	gamma = jnp.ones((seq_len, 1))
 	beta = jnp.zeros((seq_len, 1))
-	mov_mean = jnp.zeros((seq_len, 1))
-	mov_var = jnp.ones((seq_len, 1))
-	return {'gamma':gamma, 'beta':beta, 'mov_mean':mov_mean, 'mov_var':mov_var, 'eps':eps}
+	return {'gamma':gamma, 'beta':beta}
 
 def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers, vocab_size, ff_out, rate_att=0.2, rate_ff=0.2, eps=1e-9):
-	params = {
-		'encoder':{},
-		'decoder':{}
-	}
+	params = {'num_layers':num_layers}
 	rng, subkey = jax.random.split(rng)
 	init = jax.nn.initializers.glorot_normal()
 
@@ -48,12 +43,10 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers
 		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_out, rate_ff)
 		params_ln_enc_1 = get_ln_params(seq_len, eps=eps)
 		params_ln_enc_2 = get_ln_params(seq_len, eps=eps)
-		params['encoder'][i] = {
-			'mha':params_mha_enc,
-			'ff_block':params_ff_block_enc,
-			'ln_1':params_ln_enc_1,
-			'ln_2':params_ln_enc_2
-		}
+		params[f'encoder_{i}_mha'] = params_mha_enc
+		params[f'encoder_{i}_ff_block'] = params_ff_block_enc
+		params[f'encoder_{i}_ln_1'] = params_ln_enc_1
+		params[f'encoder_{i}_ln_2'] = params_ln_enc_2
 
 		rng, params_mha_dec_1 = get_mha_params(rng, dk, dv, hid_size, num_heads, rate_att)
 		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, hid_size, hid_size, num_heads, rate_att)
@@ -62,14 +55,13 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, num_layers
 		params_ln_dec_2 = get_ln_params(seq_len, eps=eps)
 		params_ln_dec_3 = get_ln_params(seq_len, eps=eps)
 
-		params['decoder'][i] = {
-			'mha_1':params_mha_dec_1,
-			'mha_2':params_mha_dec_2,
-			'ff_block':params_ff_block_dec,
-			'ln_1':params_ln_dec_1,
-			'ln_2':params_ln_dec_2,
-			'ln_3':params_ln_dec_3,
-		}
+		params[f'decoder_{i}_mha_1'] = params_mha_dec_1
+		params[f'decoder_{i}_mha_2'] = params_mha_dec_2
+		params[f'decoder_{i}_ff_block'] = params_ff_block_dec
+		params[f'decoder_{i}_ln_1'] = params_ln_dec_1
+		params[f'decoder_{i}_ln_2'] = params_ln_dec_2
+		params[f'decoder_{i}_ln_3'] = params_ln_dec_3
+
 	return params
 
 def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):

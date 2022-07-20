@@ -7,7 +7,7 @@ from initializer import *
 
 def embed(inputs, params):
 	seq, pos_enc = inputs
-	W = params['W']
+	W = params['embed']['W']
 	out = jnp.stack([W[:, x] + pos_enc[i] for x, i in zip(seq, range(len(seq)))], axis=0)
 	return out
 
@@ -20,12 +20,12 @@ def scaled_dot_product_att(inputs, params, training=True):
 		mask = jnp.expand_dims(mask, axis=0)
 		QK = QK + mask # attn = attn.masked_fill(mask == 0, -1e9)
 
-	attn = dropout(softmax(QK, axis=-1), params, training=training)
+	attn = dropout(softmax(QK, axis=-1), training=training)
 	out = jit(jnp.matmul)(attn, V)
 	return out, attn
 
-def dropout(inputs, params, training=True):
-	rate, broadcast_dims = params['rate'], ()
+def dropout(inputs, training=True, rate=0.2):
+	broadcast_dims = ()
 	seed = np.random.randint((1 << 63) - 1)
 	rng = jax.random.PRNGKey(seed)
 	if rate <= 0:
@@ -46,10 +46,11 @@ def dropout(inputs, params, training=True):
 		mask = jnp.broadcast_to(mask, inputs.shape)
 		return lax.select(mask, inputs / keep_prob, jnp.zeros_like(inputs))
 	
-def multihead_attention(inputs, params, training=True):
+def multihead_attention(inputs, params, key, training=True):
 	
+	params_mha = params[key]
 	Q, K, V, mask = inputs
-	WQs, WKs, WVs, Wout, num_heads = params['WQs'], params['WKs'], params['WVs'], params['Wout'], params['num_heads']
+	WQs, WKs, WVs, Wout, num_heads = params_mha['WQs'], params_mha['WKs'], params_mha['WVs'], params_mha['Wout'], params_mha['num_heads']
 
 	q_size, k_size, v_size = Q.shape[0],K.shape[0],V.shape[0]
 	dk = Q.shape[-1]
@@ -61,7 +62,7 @@ def multihead_attention(inputs, params, training=True):
 
 	Qs, Ks, Vs = jnp.transpose(Qs, axes=(1, 0, 2)), jnp.transpose(Ks, axes=(1, 0, 2)), jnp.transpose(Vs,axes=(1, 0, 2)) # (num_heads, seq_len, dx)
 	
-	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], params, training=training) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
+	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], params_mha, training=training) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
 
 	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, dx)
 	out = out.reshape(q_size, num_heads * dv) # (seq_len, num_heads * dx)
@@ -70,31 +71,24 @@ def multihead_attention(inputs, params, training=True):
 
 	return out_proj, attn
 
-#TODO layer norm not updates mov_mean and mov_variance due to not referenced args (copys)
-def layer_norm(inputs, params, training=True):
+def layer_norm(inputs, params, key, training=True, eps = 1e-9):
 	
-	gamma, beta, mov_mean, mov_var, eps = params['gamma'], params['beta'], params['mov_mean'], params['mov_var'], params['eps']
+	params_ln = params[key]
+	gamma, beta = params_ln['gamma'], params_ln['beta']
+	
+	mean = inputs.mean(axis=(-1,-2), keepdims=True)
+	var = ((inputs - mean) ** 2).mean(axis=(-1,-2), keepdims=True)
 
-	mean = inputs.mean(axis=-1, keepdims=True)
-	var = ((inputs - mean) ** 2).mean(axis=-1, keepdims=True)
-	new_mov_mean, new_mov_var = None, None
-
-	if training:
-		out = (inputs-mean)/jnp.sqrt(var + eps)
-		new_mov_mean = (mov_mean * 0.9) + (mean * 0.1)
-		new_mov_var = (mov_var * 0.9) + (var * 0.1)
-	else:
-		out = (inputs-mov_mean)/jnp.sqrt(mov_var + eps)
-
+	out = (inputs-mean)/jnp.sqrt(var + eps)
 	out = (out * gamma) + beta
-
 	return out
 
-def ff_block(inputs, params, training=True):
-	W1, W2 = params['W1'], params['W2']
-	b1, b2 = params['b1'], params['b2']
+def ff_block(inputs, params, key, training=True):
+	params_ff = params[key]
+	W1, W2 = params_ff['W1'], params_ff['W2']
+	b1, b2 = params_ff['b1'], params_ff['b2']
 
 	hid = jit(gelu)(jit(jnp.matmul)(inputs, W1) + b1)
-	hid = dropout(hid, params, training=training)
+	hid = dropout(hid, training=training)
 	out = jit(gelu)(jit(jnp.matmul)(hid, W2) + b2)
 	return out

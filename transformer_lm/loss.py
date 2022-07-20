@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 
 def lm_loss_fn(inputs, params, forward_fn, vocab_size: int, training: bool = True) -> jnp.ndarray:
+    
     inputs_enc, inputs_dec, targets, mask = inputs
     logits = forward_fn([inputs_enc, inputs_dec], params, training=training)
     targets = jax.nn.one_hot(targets, vocab_size)
