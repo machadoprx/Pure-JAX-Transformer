@@ -19,7 +19,7 @@ def scaled_dot_product_att(inputs, training=True, causal=False):
 	dim = Q.shape[-1]
 	seq_len = Q.shape[-2]
 
-	QK = jit(jnp.matmul)(Q, jnp.transpose(K, axes=(0, 2, 1))) / jnp.sqrt(dim)
+	QK = jnp.matmul(Q, jnp.transpose(K, axes=(0, 2, 1))) / jnp.sqrt(dim)
 	
 	mask_causal = jnp.zeros((seq_len,seq_len))
 	mask_tmp = jnp.zeros((seq_len,seq_len))
@@ -35,7 +35,7 @@ def scaled_dot_product_att(inputs, training=True, causal=False):
 	QK = QK + final_mask
 
 	attn = dropout(softmax(QK, axis=-1), training=training)
-	out = jit(jnp.matmul)(attn, V)
+	out = jnp.matmul(attn, V)
 	return out, attn
 
 @partial(jax.jit, static_argnames=['rate', 'training'])
@@ -105,7 +105,7 @@ def ff_block(inputs, params, key, training=True):
 	W1, W2 = params_ff['W1'], params_ff['W2']
 	b1, b2 = params_ff['b1'], params_ff['b2']
 
-	hid = jit(gelu)(jit(jnp.matmul)(inputs, W1) + b1)
+	hid = gelu(jnp.matmul(inputs, W1) + b1)
 	hid = dropout(hid, training=training)
-	out = jit(gelu)(jit(jnp.matmul)(hid, W2) + b2)
+	out = gelu(jnp.matmul(hid, W2) + b2)
 	return out

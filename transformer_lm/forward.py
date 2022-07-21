@@ -28,5 +28,5 @@ def forward_transformer(inputs, params, training=True):
 
 	#print(input)
 	#print(target)
-	print(jnp.argmax(out, axis=-1))
+	#print(jnp.argmax(out, axis=-1))
 	return out

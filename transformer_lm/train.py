@@ -68,7 +68,7 @@ def debug():
 	dv = 32
 	hid_size = 32
 	vocab_size = 301
-	epochs = 15
+	epochs = 25
 	lr = 0.05
 	ff_dim = 128
 	#in_feats = 128
@@ -99,17 +99,19 @@ def debug():
 	print(params)
 
 	seq_pred = []
-	print(ds[0][0][0], ds[0][0][1])
+	k = 7
+
+	print(ds[0][k][0], ds[0][k][1])
 	in_dec = np.zeros((seq_len), dtype=np.int64)
 	in_dec[0] = 1
 	print(in_dec)
 
-	mask_input = ds[0][0][0] == 0
+	mask_input = ds[0][k][0] == 0
 	mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
 	print(mask_input)
-	mask_target = in_dec == 0
+	mask_target = ds[0][k][1] == 0
 	mask_target = jnp.where(mask_target, -1e9, jnp.zeros((seq_len,seq_len)))
 
-	print(jnp.argmax(softmax(forward_transformer([ds[0][0][0], mask_input, in_dec, mask_target], params, training=False), axis=-1), axis=-1))
+	print(jnp.argmax(softmax(forward_transformer([ds[0][k][0], mask_input, ds[0][k][1], mask_target], params, training=False), axis=-1), axis=-1))
 	
 debug()
