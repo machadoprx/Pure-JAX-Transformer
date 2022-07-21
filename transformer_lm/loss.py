@@ -4,23 +4,22 @@ from utils import *
 
 def lm_loss_fn(inputs, params, forward_fn, vocab_size: int, training: bool = True) -> jnp.ndarray:
     
-    inputs, targets = inputs
-    seq_len = len(inputs)
-
-    # causal mask only in mha; 0 as padding token id
-    mask_input = inputs == 0
-    mask_input = jnp.where(mask_input, -jnp.inf, jnp.zeros((seq_len,seq_len)))
-
+    x, targets = inputs
+    #print(x.shape)
+    #quit()
+    #print(x, targets)
+    #quit()
+    mask_x = x == 0
     mask_target = targets == 0
-    mask_target = jnp.where(mask_target, -jnp.inf, jnp.zeros((seq_len,seq_len)))
-    
-    logits = forward_fn([inputs, mask_input, targets, mask_target], params, training=training)
+    mask_ce = jnp.greater(targets != 0, 0)
+    #print(mask_ce)
 
-    mask_ce = targets == 0
+    logits = forward_fn([x, mask_x, targets, mask_target], params, training=training)
+
     targets = jax.nn.one_hot(targets, vocab_size)
     assert logits.shape == targets.shape
-    mask = jnp.greater(mask_ce, 0) # ?
+
     loss = -jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1)
-    loss = jnp.sum(loss * mask) / jnp.sum(mask)
+    loss = jnp.sum(loss * mask_ce) / jnp.sum(mask_ce)
 
     return loss

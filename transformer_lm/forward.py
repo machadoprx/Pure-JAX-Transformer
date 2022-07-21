@@ -6,6 +6,9 @@ def forward_transformer(inputs, params, training=True):
 	
 	input, mask_input, target, mask_target = inputs
 
+	#print(input[0], target[0])
+	#quit()
+
 	seq_len = len(input)
 	n_layers = params['num_layers']
 	hid_size = params['encoder_0_ff_block']['W1'].shape[0]
@@ -23,4 +26,7 @@ def forward_transformer(inputs, params, training=True):
 
 	out = jnp.matmul(out_dec, params['embed']['W'])
 
+	#print(input)
+	#print(target)
+	print(jnp.argmax(out, axis=-1))
 	return out

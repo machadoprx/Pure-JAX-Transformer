@@ -13,25 +13,28 @@ def embed(inputs, params):
 	out = jnp.stack([W[:, x] + pos_enc[i] for x, i in zip(seq, range(len(seq)))], axis=0)
 	return out
 
-#@partial(jax.jit, static_argnames=['training', 'causal'])
+@partial(jax.jit, static_argnames=['training', 'causal'])
 def scaled_dot_product_att(inputs, training=True, causal=False):
 	Q, K, V, mask = inputs
 	dim = Q.shape[-1]
 	seq_len = Q.shape[-2]
 
 	QK = jit(jnp.matmul)(Q, jnp.transpose(K, axes=(0, 2, 1))) / jnp.sqrt(dim)
+	
+	mask_causal = jnp.zeros((seq_len,seq_len))
+	mask_tmp = jnp.zeros((seq_len,seq_len))
+
 	if mask is not None:
-		mask = jnp.expand_dims(mask, axis=0)
-		QK = QK + mask
+		mask_tmp = mask
+
 	if causal is not None:
 		mask_causal = jnp.triu(jnp.ones((seq_len,seq_len)))
-		mask_causal = jnp.where(mask_causal, -jnp.inf, jnp.zeros((seq_len,seq_len)))
-		mask_causal = jnp.expand_dims(mask_causal, axis=0)
-		QK = QK + mask_causal
+
+	final_mask = jnp.where(mask_tmp + mask_causal, -1e9, jnp.zeros((seq_len,seq_len)))
+	final_mask = jnp.expand_dims(final_mask, axis=0)
+	QK = QK + final_mask
 
 	attn = dropout(softmax(QK, axis=-1), training=training)
-	print(attn[0])
-	quit()
 	out = jit(jnp.matmul)(attn, V)
 	return out, attn
 
