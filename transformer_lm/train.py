@@ -38,56 +38,57 @@ def get_sample_ds(size=2048, seq_len=12, vocab_size=300, bs=8):
 		start = 300
 		while start >= 280:
 			start = np.random.randint(1, high=vocab_size)
-		x = np.arange(start, start + seq_len, 1, dtype=int)
+		x = np.arange(start, start + seq_len - 2, 1, dtype=int)
 		target =  x[::-1]
 		#print(x, target)
 		#quit()
-		X.append(x)
-		y.append(target)
+		y.append(np.concatenate([np.array([0]),target,np.array([300])], axis=-1))
+		X.append(np.concatenate([np.array([0]),x,np.array([300])], axis=-1))
+		
 	ds = list(zip(X, y)) 
 	ds = jnp.asarray(ds).reshape((size//bs, 2, bs, seq_len))
 	return ds
 
 
 def debug():
-	num_heads = 1
-	seq_len = 4
-	dk = 20
-	dv = 20
-	hid_size = 20
+	num_heads = 4
+	seq_len = 12
+	dk = 32
+	dv = 32
+	hid_size = 32
 	vocab_size = 300
 	epochs = 4
 	lr = 0.05
-	embed_size = 20
+	ff_dim = 128
 	#in_feats = 128
 	bs = 8
-	n_layers = 1
+	n_layers = 3
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
 	ds = get_sample_ds(size=2048, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 
-	#params = get_transformer_params(rng, seq_len, dk, dv, hid_size, num_heads, n_layers, vocab_size, hid_size)
+	params = get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, n_layers, vocab_size)
 
 	rng, subkey = jax.random.split(rng)
 
 	Q = jnp.array([[[1,2,3,4], [101,102,103,104]], [[7,8,9,10], [17,18,19,20]]])
-
 
 	targets = jnp.array([[[4, 3, 2, 1], [104,103,102,101]], [[10,9,8,7], [20,19,18,17]]])
 	mask_tmp = jnp.tril(jnp.ones((seq_len,seq_len)))
 
 	print(list(zip(Q, targets))[0])
 
-	#params = train_loop(ds, params, seq_len, vocab_size, epochs, lr)
+	params = train_loop(ds, params, seq_len, vocab_size, epochs, lr)
 	
-	#f = open('data.obj', 'wb')
-	#pickle.dump(params,f)
-	#f.close()
-	params = pickle.load(open('data.obj', 'rb'))
+	f = open('data.obj', 'wb')
+	pickle.dump(params,f)
+	f.close()
+	#params = pickle.load(open('data.obj', 'rb'))
+	print(params)
 
 	seq_pred = []
 
-	print(jnp.argmax(softmax(forward_transformer([jnp.array([13,14,15,16]), jnp.array([16, 15, 14, 0])], params, training=False), axis=-1), axis=-1))
+	print(jnp.argmax(softmax(forward_transformer([jnp.array([0,13,14,15,16,17,18,19,20,21,22,300]), jnp.array([0,22,0,0,0,0,0,0,0,0,0,0])], params, training=False), axis=-1), axis=-1))
 	
 debug()

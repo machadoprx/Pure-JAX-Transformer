@@ -56,16 +56,16 @@ def multihead_attention(inputs, params, key, training=True):
 	dk = Q.shape[-1]
 	dv = V.shape[-1]
 
-	Qs = jit(jnp.matmul)(Q, WQs).reshape((q_size, num_heads, dk))
-	Ks = jit(jnp.matmul)(K, WKs).reshape((k_size, num_heads, dk))
-	Vs = jit(jnp.matmul)(V, WVs).reshape((v_size, num_heads, dv))
+	Qs = jit(jnp.matmul)(Q, WQs).reshape((q_size, num_heads, dk // num_heads))
+	Ks = jit(jnp.matmul)(K, WKs).reshape((k_size, num_heads, dk // num_heads))
+	Vs = jit(jnp.matmul)(V, WVs).reshape((v_size, num_heads, dv // num_heads))
 
 	Qs, Ks, Vs = jnp.transpose(Qs, axes=(1, 0, 2)), jnp.transpose(Ks, axes=(1, 0, 2)), jnp.transpose(Vs,axes=(1, 0, 2)) # (num_heads, seq_len, dx)
 	
 	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], params_mha, training=training) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
 
-	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, dx)
-	out = out.reshape(q_size, num_heads * dv) # (seq_len, num_heads * dx)
+	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, dx // num_heads)
+	out = out.reshape(q_size, dv) # (seq_len, num_heads * dx)
 
 	out_proj = jit(jnp.matmul)(out, Wout)
 
