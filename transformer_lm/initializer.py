@@ -83,11 +83,3 @@ def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
         sinusoid_table[padding_idx] = 0.
 
     return jnp.array(sinusoid_table)
-
-def get_causal_mask(seq_len):
-	mask_tmp = jnp.tril(jnp.ones((seq_len,seq_len)))
-	mask_causal = mask_tmp.at[jnp.where(mask_tmp == 1)].set(0)
-	mask_causal = mask_causal.at[jnp.where(mask_tmp == 0)].set(-1e9)
-	return mask_causal
-	
-
