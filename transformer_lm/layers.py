@@ -25,7 +25,7 @@ def scaled_dot_product_att(inputs, training=True, causal=False):
 	if mask is not None:
 		QK = jnp.where(mask, -1e9, QK)
 
-	if causal is not None:
+	if causal == True:
 		mask_causal = jnp.triu(jnp.ones((seq_len,seq_len)))
 		QK = jnp.where(mask_causal, -1e9, QK)
 
@@ -71,7 +71,7 @@ def multihead_attention(inputs, params, key, training=True, causal=False):
 	Vs = jit(jnp.matmul)(V, WVs).reshape((v_size, num_heads, dv // num_heads))
 
 	Qs, Ks, Vs = jnp.transpose(Qs, axes=(1, 0, 2)), jnp.transpose(Ks, axes=(1, 0, 2)), jnp.transpose(Vs,axes=(1, 0, 2)) # (num_heads, seq_len, dx)
-	
+
 	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], training=training, causal=causal) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
 	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, dx // num_heads)
 	out = out.reshape(q_size, dv) # (seq_len, num_heads * dx)

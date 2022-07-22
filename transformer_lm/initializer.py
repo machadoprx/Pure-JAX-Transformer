@@ -26,7 +26,6 @@ def get_mha_params(rng, dk, dv, out_features, num_heads):
 	rng, _ = jax.random.split(rng)
 	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout, 'num_heads':num_heads}
 
-#TODO Is it seqlen independent?
 def get_ln_params(seq_len, hid_size):
 	gamma = jnp.ones((seq_len, hid_size))
 	beta = jnp.zeros((seq_len, hid_size))

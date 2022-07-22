@@ -6,9 +6,6 @@ def forward_transformer(inputs, params, training=True):
 	
 	input, mask_input, target, mask_target = inputs
 
-	#print(input[0], target[0])seq_len_inp = len(input)
-	#quit()
-
 	seq_len_inp = len(input)
 	seq_len_tgt = len(target)
 	n_layers = params['num_layers']
@@ -30,5 +27,5 @@ def forward_transformer(inputs, params, training=True):
 
 	#print(input)
 	#print(target)
-	print(jnp.argmax(out, axis=-1))
+	#print(jnp.argmax(out, axis=-1))
 	return out
