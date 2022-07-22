@@ -68,7 +68,7 @@ def debug():
 	dv = 32
 	hid_size = 32
 	vocab_size = 301
-	epochs = 25
+	epochs = 6
 	lr = 0.05
 	ff_dim = 128
 	#in_feats = 128
@@ -90,16 +90,16 @@ def debug():
 
 	print(list(zip(Q, targets))[0])
 
-	params = train_loop(ds, params, seq_len, vocab_size, epochs, lr)
+	#params = train_loop(ds, params, seq_len, vocab_size, epochs, lr)
 	
-	f = open('data.obj', 'wb')
-	pickle.dump(params,f)
-	f.close()
-	#params = pickle.load(open('data.obj', 'rb'))
+	#f = open('data.obj', 'wb')
+	#pickle.dump(params,f)
+	#f.close()
+	params = pickle.load(open('data.obj', 'rb'))
 	print(params)
 
 	seq_pred = []
-	k = 7
+	k = 2
 
 	print(ds[0][k][0], ds[0][k][1])
 	in_dec = np.zeros((seq_len), dtype=np.int64)
@@ -112,6 +112,6 @@ def debug():
 	mask_target = ds[0][k][1] == 0
 	mask_target = jnp.where(mask_target, -1e9, jnp.zeros((seq_len,seq_len)))
 
-	print(jnp.argmax(softmax(forward_transformer([ds[0][k][0], mask_input, ds[0][k][1], mask_target], params, training=False), axis=-1), axis=-1))
+	print(jnp.argmax(softmax(forward_transformer([ds[0][k][0], mask_input, [1,1], jnp.zeros((2,2))], params, training=False), axis=-1), axis=-1))
 	
 debug()

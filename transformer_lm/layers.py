@@ -16,23 +16,18 @@ def embed(inputs, params):
 @partial(jax.jit, static_argnames=['training', 'causal'])
 def scaled_dot_product_att(inputs, training=True, causal=False):
 	Q, K, V, mask = inputs
-	dim = Q.shape[-1]
+	dim = Q.shape[-1] # dim model!?
 	seq_len = Q.shape[-2]
 
+	# (num_heads, len_q, dim) @ (num_heads,dim,len_k)
 	QK = jnp.matmul(Q, jnp.transpose(K, axes=(0, 2, 1))) / jnp.sqrt(dim)
-	
-	mask_causal = jnp.zeros((seq_len,seq_len))
-	mask_tmp = jnp.zeros((seq_len,seq_len))
 
 	if mask is not None:
-		mask_tmp = mask
+		QK = jnp.where(mask, -1e9, QK)
 
 	if causal is not None:
 		mask_causal = jnp.triu(jnp.ones((seq_len,seq_len)))
-
-	final_mask = jnp.where(mask_tmp + mask_causal, -1e9, jnp.zeros((seq_len,seq_len)))
-	final_mask = jnp.expand_dims(final_mask, axis=0)
-	QK = QK + final_mask
+		QK = jnp.where(mask_causal, -1e9, QK)
 
 	attn = dropout(softmax(QK, axis=-1), training=training)
 	out = jnp.matmul(attn, V)
@@ -78,7 +73,6 @@ def multihead_attention(inputs, params, key, training=True, causal=False):
 	Qs, Ks, Vs = jnp.transpose(Qs, axes=(1, 0, 2)), jnp.transpose(Ks, axes=(1, 0, 2)), jnp.transpose(Vs,axes=(1, 0, 2)) # (num_heads, seq_len, dx)
 	
 	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], training=training, causal=causal) # (num_heads, seq_len, dx), (num_heads, seq_len, seq_len)
-
 	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, dx // num_heads)
 	out = out.reshape(q_size, dv) # (seq_len, num_heads * dx)
 
@@ -105,7 +99,5 @@ def ff_block(inputs, params, key, training=True):
 	W1, W2 = params_ff['W1'], params_ff['W2']
 	b1, b2 = params_ff['b1'], params_ff['b2']
 
-	hid = gelu(jnp.matmul(inputs, W1) + b1)
-	hid = dropout(hid, training=training)
-	out = gelu(jnp.matmul(hid, W2) + b2)
-	return out
+	hid = dropout(gelu(jnp.matmul(inputs, W1) + b1), training=training)
+	return jnp.matmul(hid, W2) + b2

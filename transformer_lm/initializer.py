@@ -26,6 +26,7 @@ def get_mha_params(rng, dk, dv, out_features, num_heads):
 	rng, _ = jax.random.split(rng)
 	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout, 'num_heads':num_heads}
 
+#TODO Is it seqlen independent?
 def get_ln_params(seq_len, hid_size):
 	gamma = jnp.ones((seq_len, hid_size))
 	beta = jnp.zeros((seq_len, hid_size))
@@ -39,6 +40,7 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 	params['embed'] = {}
 	params['embed']['W'] = init(subkey, (hid_size, vocab_size), jnp.float32)
 
+	#TODO parameters error, seqlen may be diffent between encoder and decoder
 	for i in range(num_layers):
 		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads)
 		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_dim)
