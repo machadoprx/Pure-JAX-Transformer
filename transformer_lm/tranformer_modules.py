@@ -27,15 +27,3 @@ def decoder_block(inputs, params, layer, training=True):
     out = layer_norm(out + mha, params, f'decoder_{layer}_ln_3', training=training)
 
     return out
-
-'''
-	embedding_enc = embed([input, pos_enc], params) * jnp.sqrt(hid_size)
-	out_enc = embedding_enc
-	for i in range(n_layers):
-		out_enc = encoder_block([out_enc, out_enc, out_enc, mask_input], params, i, training=training)
-	
-	embedding_dec = embed([target, pos_enc], params) * jnp.sqrt(hid_size)
-	out_dec = embedding_dec
-	for i in range(n_layers):
-		out_dec = decoder_block([out_dec, out_dec, out_dec, out_enc, mask_target], params, i, training=training)
-'''

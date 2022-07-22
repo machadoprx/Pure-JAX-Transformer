@@ -39,7 +39,6 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 	params['embed'] = {}
 	params['embed']['W'] = init(subkey, (hid_size, vocab_size), jnp.float32)
 
-	#TODO parameters error, seqlen may be diffent between encoder and decoder
 	for i in range(num_layers):
 		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads)
 		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_dim)

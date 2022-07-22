@@ -56,21 +56,19 @@ def get_sample_ds(size=2048, seq_len=12, vocab_size=300, bs=8):
 	ds = list(zip(X, y)) 
 	ds = jnp.asarray(ds).reshape((size//bs, bs, 2, seq_len))
 
-	#print(ds[0])
-	#quit()
 	return ds
 
 
 def debug():
 	num_heads = 4
 	seq_len = 16
-	dk = 32
-	dv = 32
+	dk = 8
+	dv = 8
 	hid_size = 32
 	vocab_size = 301
-	epochs = 8
+	epochs = 10
 	lr = 0.1
-	ff_dim = 128
+	ff_dim = 32
 	#in_feats = 128
 	bs = 64
 	n_layers = 1
@@ -92,7 +90,7 @@ def debug():
 	#print(params)
 
 	seq_pred = []
-	k = 19
+	k = 3
 
 	#print(ds[0][k])
 	#print(ds[0][0])
@@ -106,6 +104,6 @@ def debug():
 	mask_target = ds[0][k][1] == 0
 	mask_target = jnp.where(mask_target, -1e9, jnp.zeros((seq_len,seq_len)))
 	print(ds[0][k][0])
-	print(jnp.argmax(softmax(forward_transformer([ds[0][k][0], mask_input, [1] + [0 for i in range(len(ds[0][k][1])-1)], mask_target], params, training=False), axis=-1), axis=-1)[0])
+	print(jnp.argmax(softmax(forward_transformer([ds[0][k][0], mask_input, [1] + [0 for i in range(len(ds[0][k][1])-1)], jnp.zeros((seq_len,seq_len))], params, training=False), axis=-1), axis=-1)[0])
 	
 debug()
