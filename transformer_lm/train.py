@@ -13,9 +13,9 @@ import random
 import pickle
 
 def train_step(inputs, params, vocab_size):
-	return lm_loss_fn(inputs, params, forward_transformer, vocab_size, training=True)
+	return lm_loss_fn(inputs, params, forward_train, vocab_size)
 
-def train_loop(batched_inputs, params, seq_len, vocab_size, epochs, lr):
+def train_loop(batched_inputs, params, vocab_size, epochs, lr):
 	for e in range(epochs):
 		epoch_loss = 0.0
 		batched_inputs = jax.random.permutation(jax.random.PRNGKey(np.random.randint(3000)), batched_inputs)
@@ -27,9 +27,6 @@ def train_loop(batched_inputs, params, seq_len, vocab_size, epochs, lr):
 			params = jax.tree_util.tree_map(lambda p, g: p - lr * jnp.mean(g, axis=0) if not isinstance(p, int) else p, params, grads)
 		print(f'Epoch: {e + 1} - Loss: {epoch_loss/len(batched_inputs)}')
 	return params
-
-def batched_inference(inputs, params, vocab_size):
-	pass
 
 def get_sample_ds(size=2048, seq_len=12, vocab_size=300, bs=8):
 	X = []
@@ -66,11 +63,11 @@ def debug():
 	dv = 8
 	hid_size = 32
 	vocab_size = 301
-	epochs = 10
+	epochs = 6
 	lr = 0.1
 	ff_dim = 32
 	#in_feats = 128
-	bs = 64
+	bs = 32
 	n_layers = 1
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
@@ -81,29 +78,22 @@ def debug():
 
 	rng, subkey = jax.random.split(rng)
 
-	#params = train_loop(ds, params, seq_len, vocab_size, epochs, lr)
+	#params = pickle.load(open('data.obj', 'rb'))
+	#params = train_loop(ds, params, vocab_size, epochs, lr)
 	
-	#f = open('data.obj', 'wb')
-	#pickle.dump(params,f)
-	#f.close()
+	#f = open('data.obj', 'wb'); pickle.dump(params,f); f.close()
 	params = pickle.load(open('data.obj', 'rb'))
 	#print(params)
 
 	seq_pred = []
-	k = 3
+	k = 2
 
-	#print(ds[0][k])
-	#print(ds[0][0])
-	in_dec = np.zeros((seq_len), dtype=np.int64)
-	in_dec[0] = 1
-	#print(in_dec)
-
-	mask_input = ds[0][k][0] == 0
+	#x = [1, 25, 26, 27, 28, 29, 30, 31, 32, 33, 2, 0, 0, 0, 0, 0]
+	x = ds[0][k][0]
+	mask_input = x == 0
 	mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
-	#print(mask_input)
-	mask_target = ds[0][k][1] == 0
-	mask_target = jnp.where(mask_target, -1e9, jnp.zeros((seq_len,seq_len)))
-	print(ds[0][k][0])
-	print(jnp.argmax(softmax(forward_transformer([ds[0][k][0], mask_input, [1] + [0 for i in range(len(ds[0][k][1])-1)], jnp.zeros((seq_len,seq_len))], params, training=False), axis=-1), axis=-1)[0])
+
+	print(x)
+	print(forward_test([x, mask_input], params))
 	
 debug()

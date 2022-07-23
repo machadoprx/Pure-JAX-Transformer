@@ -31,6 +31,7 @@ def get_ln_params(seq_len, hid_size):
 	beta = jnp.zeros((seq_len, hid_size))
 	return {'gamma':gamma, 'beta':beta}
 
+#TODO add trainable dict of bools for grad prop 
 def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, num_layers, vocab_size):
 	params = {'num_layers':num_layers}
 	rng, subkey = jax.random.split(rng)

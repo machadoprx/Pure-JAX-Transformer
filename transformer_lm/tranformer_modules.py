@@ -3,7 +3,8 @@ from initializer import *
 
 def encoder_block(inputs, params, layer, training=True):
 
-    mha, _ = multihead_attention(inputs, params, f'encoder_{layer}_mha', training=training, causal=False)
+    x, mask = inputs
+    mha, _ = multihead_attention([x, x, x, mask], params, f'encoder_{layer}_mha', training=training, causal=False)
     mha_res = layer_norm(mha + inputs[0], params, f'encoder_{layer}_ln_1', training=training)
 
     out = ff_block(mha_res, params, f'encoder_{layer}_ff_block', training=training)
@@ -13,13 +14,13 @@ def encoder_block(inputs, params, layer, training=True):
 
 def decoder_block(inputs, params, layer, training=True):
     
-    Q, K, V, enc_out, mask = inputs
-    inputs_1 = [Q, K, V, mask]
+    tgt, tgt_mask, memory, memory_mask = inputs
+    inputs_1 = [tgt, tgt, tgt, tgt_mask]
 
     mha, _ = multihead_attention(inputs_1, params, f'decoder_{layer}_mha_1', training=training, causal=True)
     mha = layer_norm(mha + inputs_1[0], params, f'decoder_{layer}_ln_1', training=training)
 
-    inputs_2 = [mha, enc_out, enc_out, mask]
+    inputs_2 = [mha, memory, memory, memory_mask]
     mha, _ = multihead_attention(inputs_2, params, f'decoder_{layer}_mha_2', training=training)
     mha = layer_norm(mha + inputs_2[0], params, f'decoder_{layer}_ln_2', training=training)
 
