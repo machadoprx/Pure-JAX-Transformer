@@ -24,7 +24,7 @@ def get_mha_params(rng, dk, dv, out_features, num_heads):
 	rng, WVs, _ = get_linear_params(rng, out_features, num_heads * wqkv_dim, bias=False)
 	rng, Wout, _ = get_linear_params(rng, num_heads * wqkv_dim, out_features, bias=False)
 	rng, _ = jax.random.split(rng)
-	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout, 'num_heads':num_heads}
+	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout}
 
 def get_ln_params(seq_len, hid_size):
 	gamma = jnp.ones((seq_len, hid_size))
@@ -32,13 +32,19 @@ def get_ln_params(seq_len, hid_size):
 	return {'gamma':gamma, 'beta':beta}
 
 #TODO add trainable dict of bools for grad prop 
-def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, num_layers, vocab_size):
-	params = {'num_layers':num_layers}
+def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
+	hyper_params = {
+		'num_layers':num_layers,
+		'num_heads':num_heads,
+		'rate':rate,
+		'eps':eps,
+		'hid_size':hid_size
+	}
 	rng, subkey = jax.random.split(rng)
 	init = jax.nn.initializers.glorot_normal()
 
-	params['embed'] = {}
-	params['embed']['W'] = init(subkey, (hid_size, vocab_size), jnp.float32)
+	params = {}
+	params['embed'] = init(subkey, (hid_size, vocab_size), jnp.float32)
 
 	for i in range(num_layers):
 		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads)
@@ -64,7 +70,7 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 		params[f'decoder_{i}_ln_2'] = params_ln_dec_2
 		params[f'decoder_{i}_ln_3'] = params_ln_dec_3
 
-	return params
+	return params, hyper_params
 
 def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
 

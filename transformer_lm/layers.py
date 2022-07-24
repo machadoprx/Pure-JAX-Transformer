@@ -9,12 +9,12 @@ from functools import partial
 @jax.jit
 def embed(inputs, params):
 	seq, pos_enc = inputs
-	W = params['embed']['W']
+	W = params['embed']
 	out = jnp.stack([W[:, x] + pos_enc[i] for x, i in zip(seq, range(len(seq)))], axis=0)
 	return out
 
-@partial(jax.jit, static_argnames=['training', 'causal'])
-def scaled_dot_product_att(inputs, training=True, causal=False):
+@partial(jax.jit, static_argnames=['training', 'causal', 'rate'])
+def scaled_dot_product_att(inputs, rate=0.2, training=True, causal=False):
 	Q, K, V, mask = inputs
 	dim = Q.shape[-1] # dim model!?
 	seq_len = Q.shape[-2]
@@ -29,7 +29,7 @@ def scaled_dot_product_att(inputs, training=True, causal=False):
 		mask_causal = jnp.triu(jnp.ones((seq_len,seq_len)))
 		QK = jnp.where(mask_causal, -1e9, QK)
 
-	attn = dropout(softmax(QK, axis=-1), training=training)
+	attn = dropout(softmax(QK, axis=-1), training=training, rate=rate)
 	out = jnp.matmul(attn, V)
 	return out, attn
 
@@ -56,11 +56,11 @@ def dropout(inputs, training=True, rate=0.2):
 		mask = jnp.broadcast_to(mask, inputs.shape)
 		return lax.select(mask, inputs / keep_prob, jnp.zeros_like(inputs))
 
-def multihead_attention(inputs, params, key, training=True, causal=False):
+def multihead_attention(inputs, params, hyper_params, key, training=True, causal=False):
 	
 	params_mha = params[key]
 	Q, K, V, mask = inputs
-	WQs, WKs, WVs, Wout, num_heads = params_mha['WQs'], params_mha['WKs'], params_mha['WVs'], params_mha['Wout'], params_mha['num_heads']
+	WQs, WKs, WVs, Wout, num_heads, rate = params_mha['WQs'], params_mha['WKs'], params_mha['WVs'], params_mha['Wout'], hyper_params['num_heads'], hyper_params['rate']
 
 	q_size, k_size, v_size = Q.shape[0],K.shape[0],V.shape[0]
 	dk = Q.shape[-1]
@@ -72,7 +72,7 @@ def multihead_attention(inputs, params, key, training=True, causal=False):
 
 	Qs, Ks, Vs = jnp.transpose(Qs, axes=(1, 0, 2)), jnp.transpose(Ks, axes=(1, 0, 2)), jnp.transpose(Vs,axes=(1, 0, 2)) # (num_heads, seq_len, hid_dim)
 
-	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], training=training, causal=causal) # (num_heads, seq_len, hid_dim), (num_heads, seq_len, seq_len)
+	out, attn = scaled_dot_product_att([Qs, Ks, Vs, mask], rate=rate, training=training, causal=causal) # (num_heads, seq_len, hid_dim), (num_heads, seq_len, seq_len)
 	out = jnp.transpose(out, axes=(1, 0, 2)) # (seq_len, num_heads, hid_dim // num_heads)
 	out = out.reshape(q_size, dv) # (seq_len, num_heads * hid_dim)
 
@@ -93,11 +93,11 @@ def layer_norm(inputs, params, key, training=True, eps = 1e-9):
 	out = (out * gamma) + beta
 	return out
 
-@partial(jax.jit, static_argnames=['key', 'training'])
-def ff_block(inputs, params, key, training=True):
+@partial(jax.jit, static_argnames=['key', 'training', 'rate'])
+def ff_block(inputs, params, key, rate=0.2, training=True):
 	params_ff = params[key]
 	W1, W2 = params_ff['W1'], params_ff['W2']
 	b1, b2 = params_ff['b1'], params_ff['b2']
 
-	hid = dropout(gelu(jnp.matmul(inputs, W1) + b1), training=training)
+	hid = dropout(gelu(jnp.matmul(inputs, W1) + b1), training=training, rate=rate)
 	return jnp.matmul(hid, W2) + b2

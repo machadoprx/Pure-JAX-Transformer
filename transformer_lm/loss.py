@@ -1,13 +1,13 @@
 import jax
 import jax.numpy as jnp
 
-def lm_loss_fn(inputs, params, forward_fn, vocab_size: int) -> jnp.ndarray:
+def lm_loss_fn(inputs, params, hyper_params, forward_fn, vocab_size: int) -> jnp.ndarray:
     
     x, targets = inputs
     mask_x = x == 0
     mask_target = targets == 0
 
-    logits = forward_fn([x, mask_x, targets, mask_target], params)
+    logits = forward_fn([x, mask_x, targets, mask_target], params, hyper_params)
     
     targets = targets[1:]
     logits = logits[:-1, :]

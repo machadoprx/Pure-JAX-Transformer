@@ -1,5 +1,7 @@
 # chess_language_model
-An excuse to learn Jax
+
+A stateless, instanceless and probabily error prone Transformer implementation in JAX.
+Also an excuse to learn JAX.
 
 TODO:
 * Gradnorm

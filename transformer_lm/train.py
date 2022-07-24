@@ -7,22 +7,26 @@ from tranformer_modules import *
 from forward import *
 from loss import *
 from layers import *
+from adamax import *
 from tqdm import tqdm
 import pickle
 
-def train_step(inputs, params, vocab_size):
-	return lm_loss_fn(inputs, params, forward_train, vocab_size)
+def train_step(inputs, params, hyper_params, vocab_size):
+	return lm_loss_fn(inputs, params, hyper_params, forward_train, vocab_size)
 
-def train_loop(batched_inputs, params, vocab_size, epochs, lr):
+def train_loop(batched_inputs, params, hyper_params, state, vocab_size, epochs, lr):
+	step = 0
 	for e in range(epochs):
 		epoch_loss = 0.0
 		batched_inputs = jax.random.permutation(jax.random.PRNGKey(np.random.randint(3000)), batched_inputs)
 		for batch in tqdm(batched_inputs, total=len(batched_inputs)):
 			x, target = batch[:, 0], batch[:, 1]
-			loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0], None, None)) \
-																	([x, target], params, vocab_size)
+			loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0], None, None, None)) \
+																	([x, target], params, hyper_params, vocab_size)
 			epoch_loss += jnp.mean(loss)
-			params = jax.tree_util.tree_map(lambda p, g: p - lr * jnp.mean(g, axis=0) if not isinstance(p, int) else p, params, grads)
+			params, state = adamax(params, grads, state, step, lr=lr)
+			#params = jax.tree_util.tree_map(lambda p, g: p - lr * jnp.mean(g, axis=0) , params, grads)
+			step += 1
 		print(f'Epoch: {e + 1} - Loss: {epoch_loss/len(batched_inputs)}')
 	return params
 
@@ -56,28 +60,35 @@ def get_sample_ds(size=2048, seq_len=12, vocab_size=300, bs=8):
 
 def debug():
 	num_heads = 4
-	seq_len = 16
-	dk = 8
-	dv = 8
-	hid_size = 32
+	seq_len = 12
+	dk = 16
+	dv = dk
+	hid_size = dk * 4
 	vocab_size = 301
-	epochs = 10
+	epochs = 16
 	lr = 0.1
-	ff_dim = 32
+	ff_dim = hid_size * 4
 	#in_feats = 128
-	bs = 256
-	n_layers = 2
+	bs = 128
+	n_layers = 4
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
-	ds = get_sample_ds(size=16384 * 2, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
+	ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 
-	params = get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, n_layers, vocab_size)
-
+	params, hyper_params = get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, n_layers, vocab_size)
+	leaves, tree = jax.tree_util.tree_flatten(params)
+	state = [jnp.zeros_like(p) for p in leaves]
+	state = jax.tree_util.tree_unflatten(tree, state)
+	state = {
+		'mom':state,
+		'inf':state
+	}
+	print(hyper_params)
 	rng, subkey = jax.random.split(rng)
 
 	#params = pickle.load(open('data.obj', 'rb'))
-	params = train_loop(ds, params, vocab_size, epochs, lr)
+	params = train_loop(ds, params, hyper_params, state, vocab_size, epochs, lr)
 	
 	f = open('data.obj', 'wb'); pickle.dump(params,f); f.close()
 	#params = pickle.load(open('data.obj', 'rb'))
@@ -92,6 +103,6 @@ def debug():
 	mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
 
 	print(x)
-	print(forward_test([x, mask_input], params))
+	print(forward_test([x, mask_input], hyper_params, params))
 	
 debug()
