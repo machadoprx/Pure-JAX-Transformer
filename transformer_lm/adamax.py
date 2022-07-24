@@ -4,7 +4,7 @@ import jax.numpy as jnp
 @jax.jit
 def adamax(params, grads, state, step, lr=1e-4, delta1=0.9, delta2=0.999):
 
-    eps = 1e-7
+    eps = 1e-8
     params_flat, tree = jax.tree_util.tree_flatten(params)
     grads_flat, _ = jax.tree_util.tree_flatten(grads)
     state_mom_flat, _ = jax.tree_util.tree_flatten(state['mom'])

@@ -61,16 +61,16 @@ def get_sample_ds(size=2048, seq_len=12, vocab_size=300, bs=8):
 def debug():
 	num_heads = 4
 	seq_len = 12
-	dk = 16
+	dk = 8
 	dv = dk
 	hid_size = dk * 4
-	vocab_size = 301
-	epochs = 16
-	lr = 0.1
+	vocab_size = 201
+	epochs = 20
+	lr = 2e-3
 	ff_dim = hid_size * 4
 	#in_feats = 128
-	bs = 128
-	n_layers = 4
+	bs = 256
+	n_layers = 1
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
@@ -87,22 +87,24 @@ def debug():
 	print(hyper_params)
 	rng, subkey = jax.random.split(rng)
 
-	#params = pickle.load(open('data.obj', 'rb'))
+	#params = pickle.load(open('params.pkl', 'rb'))
 	params = train_loop(ds, params, hyper_params, state, vocab_size, epochs, lr)
 	
-	f = open('data.obj', 'wb'); pickle.dump(params,f); f.close()
+	f = open('params.pkl', 'wb'); pickle.dump(params,f); f.close()
+	#f = open('hyper.pkl', 'wb'); pickle.dump(hyper_params,f); f.close()
 	#params = pickle.load(open('data.obj', 'rb'))
 	#print(params)
 
 	seq_pred = []
-	k = 15
+	k = 79
 
 	#x = [1, 25, 26, 27, 28, 29, 30, 31, 32, 33, 2, 0, 0, 0, 0, 0]
 	x = ds[0][k][0]
 	mask_input = x == 0
 	mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
+	#print(mask_input)
 
 	print(x)
-	print(forward_test([x, mask_input], hyper_params, params))
+	print(forward_test([x, mask_input], params, hyper_params))
 	
 debug()

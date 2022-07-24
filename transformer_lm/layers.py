@@ -10,10 +10,11 @@ from functools import partial
 def embed(inputs, params):
 	seq, pos_enc = inputs
 	W = params['embed']
-	out = jnp.stack([W[:, x] + pos_enc[i] for x, i in zip(seq, range(len(seq)))], axis=0)
+	hid_size = W.shape[0]
+	out = jnp.stack([(W[:, x] * jnp.sqrt(hid_size)) + pos_enc[i] for x, i in zip(seq, range(len(seq)))], axis=0)
 	return out
 
-@partial(jax.jit, static_argnames=['training', 'causal', 'rate'])
+#@partial(jax.jit, static_argnames=['training', 'causal', 'rate'])
 def scaled_dot_product_att(inputs, rate=0.2, training=True, causal=False):
 	Q, K, V, mask = inputs
 	dim = Q.shape[-1] # dim model!?
@@ -26,7 +27,8 @@ def scaled_dot_product_att(inputs, rate=0.2, training=True, causal=False):
 		QK = jnp.where(mask, -1e9, QK)
 
 	if causal == True:
-		mask_causal = jnp.triu(jnp.ones((seq_len,seq_len)))
+		mask_causal = jnp.tril(jnp.ones((seq_len,seq_len)))
+		mask_causal = mask_causal == 0
 		QK = jnp.where(mask_causal, -1e9, QK)
 
 	attn = dropout(softmax(QK, axis=-1), training=training, rate=rate)

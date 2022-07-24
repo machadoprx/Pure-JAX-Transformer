@@ -26,9 +26,9 @@ def get_mha_params(rng, dk, dv, out_features, num_heads):
 	rng, _ = jax.random.split(rng)
 	return rng, {'WQs':WQs, 'WKs':WKs, 'WVs':WVs, 'Wout':Wout}
 
-def get_ln_params(seq_len, hid_size):
-	gamma = jnp.ones((seq_len, hid_size))
-	beta = jnp.zeros((seq_len, hid_size))
+def get_ln_params(hid_size):
+	gamma = jnp.ones((1,hid_size))
+	beta = jnp.zeros((1,hid_size))
 	return {'gamma':gamma, 'beta':beta}
 
 #TODO add trainable dict of bools for grad prop 
@@ -49,8 +49,8 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 	for i in range(num_layers):
 		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads)
 		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_dim)
-		params_ln_enc_1 = get_ln_params(seq_len,hid_size)
-		params_ln_enc_2 = get_ln_params(seq_len,hid_size)
+		params_ln_enc_1 = get_ln_params(hid_size)
+		params_ln_enc_2 = get_ln_params(hid_size)
 		params[f'encoder_{i}_mha'] = params_mha_enc
 		params[f'encoder_{i}_ff_block'] = params_ff_block_enc
 		params[f'encoder_{i}_ln_1'] = params_ln_enc_1
@@ -59,9 +59,9 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 		rng, params_mha_dec_1 = get_mha_params(rng, dk, dv, hid_size, num_heads)
 		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, hid_size, hid_size, num_heads)
 		rng, params_ff_block_dec = get_ff_block_params(rng, hid_size, ff_dim)
-		params_ln_dec_1 = get_ln_params(seq_len,hid_size)
-		params_ln_dec_2 = get_ln_params(seq_len,hid_size)
-		params_ln_dec_3 = get_ln_params(seq_len,hid_size)
+		params_ln_dec_1 = get_ln_params(hid_size)
+		params_ln_dec_2 = get_ln_params(hid_size)
+		params_ln_dec_3 = get_ln_params(hid_size)
 
 		params[f'decoder_{i}_mha_1'] = params_mha_dec_1
 		params[f'decoder_{i}_mha_2'] = params_mha_dec_2
