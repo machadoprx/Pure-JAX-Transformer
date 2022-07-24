@@ -1,4 +1,3 @@
-from re import L
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -9,7 +8,6 @@ from forward import *
 from loss import *
 from layers import *
 from tqdm import tqdm
-import random
 import pickle
 
 def train_step(inputs, params, vocab_size):
@@ -63,30 +61,30 @@ def debug():
 	dv = 8
 	hid_size = 32
 	vocab_size = 301
-	epochs = 6
+	epochs = 10
 	lr = 0.1
 	ff_dim = 32
 	#in_feats = 128
-	bs = 32
-	n_layers = 1
+	bs = 256
+	n_layers = 2
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
-	ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
+	ds = get_sample_ds(size=16384 * 2, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 
 	params = get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, n_layers, vocab_size)
 
 	rng, subkey = jax.random.split(rng)
 
 	#params = pickle.load(open('data.obj', 'rb'))
-	#params = train_loop(ds, params, vocab_size, epochs, lr)
+	params = train_loop(ds, params, vocab_size, epochs, lr)
 	
-	#f = open('data.obj', 'wb'); pickle.dump(params,f); f.close()
-	params = pickle.load(open('data.obj', 'rb'))
+	f = open('data.obj', 'wb'); pickle.dump(params,f); f.close()
+	#params = pickle.load(open('data.obj', 'rb'))
 	#print(params)
 
 	seq_pred = []
-	k = 2
+	k = 15
 
 	#x = [1, 25, 26, 27, 28, 29, 30, 31, 32, 33, 2, 0, 0, 0, 0, 0]
 	x = ds[0][k][0]
