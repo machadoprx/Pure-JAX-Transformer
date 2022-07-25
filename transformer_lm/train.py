@@ -57,24 +57,63 @@ def get_sample_ds(size=2048, seq_len=12, vocab_size=300, bs=8):
 
 	return ds
 
+def get_ds_txt(voc, corpus, bs=8, min_len=8, max_len=128):
+	corpus = corpus.split(' ')
+	i = 0
+	X = []
+	y = []
+	while i < len(corpus):
+		rq = np.random.randint(min_len, max_len-2)
+		ra = np.random.randint(min_len, max_len-2)
+		if i + ra + rq >= len(corpus):
+			break
+		xq = [corpus[k] for k in range(i, rq+i)]
+		i += rq
+		xa = [corpus[k] for k in range(i, ra+i)]
+		
+		xq = ' '.join(xq)
+		xa = ' '.join(xa)
+		xq = jnp.array(voc.encode(xq))
+		xa = jnp.array(voc.encode(xa))
+		xq = jnp.pad(xq, (0, max_len-len(xq)), mode='constant')
+		xa = jnp.pad(xa, (0, max_len-len(xa)), mode='constant')
+		X.append(xq)
+		y.append(xa)
 
+	ds = list(zip(X, y)) 
+	remain = len(ds) % bs
+	ds = ds[:-remain]
+	ds = jnp.asarray(ds).reshape((len(ds)//bs, bs, 2, max_len))
+
+	return ds
+		
 def debug():
-	num_heads = 4
-	seq_len = 12
-	dk = 8
+	num_heads = 6
+	seq_len = 128
+	dk = 512
 	dv = dk
 	hid_size = dk * 4
-	vocab_size = 201
+	
 	epochs = 20
 	lr = 2e-3
 	ff_dim = hid_size * 4
 	#in_feats = 128
-	bs = 256
-	n_layers = 1
+	bs = 8
+	n_layers = 4
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
-	ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
+	#ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
+	from vocabulary import Vocabulary
+	with open('cleaned_corpus.txt', 'r') as f:
+		corpus = f.readlines()[0]
+	voc = Vocabulary(corpus)
+	ds = get_ds_txt(voc, corpus, bs=bs, min_len=8, max_len=seq_len)
+	vocab_size = len(voc.voc.keys())
+	
+	#print(ds[0][0][0])
+	#print(ds.shape)
+	#quit()
 
 	params, hyper_params = get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, n_layers, vocab_size)
 	leaves, tree = jax.tree_util.tree_flatten(params)
