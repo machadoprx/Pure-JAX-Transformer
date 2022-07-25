@@ -7,6 +7,7 @@ class Vocabulary:
         for k in range(len(tokens)):
             self.voc[tokens[k]] = k + 3
         self.inv_voc = {v:k for k,v in self.voc.items()}
+        print(self.inv_voc)
 
     def encode(self, sent: str):
         tokens = sent.split(' ')
@@ -16,7 +17,9 @@ class Vocabulary:
 
     def decode(self, tokens) -> str:
         sent = ''
+        
         for token in tokens:
+            #print(self.inv_voc[token])
             sent = sent + ' ' + self.inv_voc[token]
         return sent
 
