@@ -14,11 +14,12 @@ import pickle
 def train_step(inputs, params, hyper_params, vocab_size):
 	return lm_loss_fn(inputs, params, hyper_params, forward_train, vocab_size)
 
-def train_loop(batched_inputs, params, hyper_params, state, vocab_size, epochs, lr):
+def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epochs, lr):
 	step = 0
 	for e in range(epochs):
 		epoch_loss = 0.0
 		batched_inputs = jax.random.permutation(jax.random.PRNGKey(np.random.randint(3000)), batched_inputs)
+		k = 0
 		for batch in tqdm(batched_inputs, total=len(batched_inputs)):
 			x, target = batch[:, 0], batch[:, 1]
 			loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0], None, None, None)) \
@@ -26,7 +27,14 @@ def train_loop(batched_inputs, params, hyper_params, state, vocab_size, epochs, 
 			epoch_loss += jnp.mean(loss)
 			params, state = adamax(params, grads, state, step, lr=lr)
 			#params = jax.tree_util.tree_map(lambda p, g: p - lr * jnp.mean(g, axis=0) , params, grads)
+			if step % 9 == 1:
+				print(epoch_loss/k)
+				x = batched_inputs[np.random.randint(0, 1800)][0][0]
+				mask_input = x == 0
+				mask_input = jnp.where(mask_input, -1e9, jnp.zeros((32,32)))
+				print(voc.decode(list(np.array(forward_test([x, mask_input], params, hyper_params)[0]))))
 			step += 1
+			k += 1
 		print(f'Epoch: {e + 1} - Loss: {epoch_loss/len(batched_inputs)}')
 	return params
 
@@ -88,17 +96,17 @@ def get_ds_txt(voc, corpus, bs=8, min_len=8, max_len=128):
 	return ds
 		
 def debug():
-	num_heads = 6
-	seq_len = 128
+	num_heads = 8
+	seq_len = 32
 	dk = 512
 	dv = dk
-	hid_size = dk * 4
+	hid_size = dk
 	
 	epochs = 20
 	lr = 2e-3
 	ff_dim = hid_size * 4
 	#in_feats = 128
-	bs = 8
+	bs = 4
 	n_layers = 4
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
@@ -127,7 +135,7 @@ def debug():
 	rng, subkey = jax.random.split(rng)
 
 	#params = pickle.load(open('params.pkl', 'rb'))
-	params = train_loop(ds, params, hyper_params, state, vocab_size, epochs, lr)
+	params = train_loop(ds, params, hyper_params, state, voc, vocab_size, epochs, lr)
 	
 	f = open('params.pkl', 'wb'); pickle.dump(params,f); f.close()
 	#f = open('hyper.pkl', 'wb'); pickle.dump(hyper_params,f); f.close()
