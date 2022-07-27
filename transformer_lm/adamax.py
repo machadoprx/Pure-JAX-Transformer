@@ -26,3 +26,12 @@ def adamax(params, grads, state, step, lr=1e-4, delta1=0.9, delta2=0.999):
     params = jax.tree_util.tree_unflatten(tree, params_flat)
 
     return params, state
+
+def lr_schedule(d_model, step, warmup_steps=400):
+    x1 = 1/jnp.sqrt(step)
+    x2 = step * (warmup_steps ** -1.5)
+    if x1 > x2:
+        out = x2
+    else:
+        out = x1
+    return 1/jnp.sqrt(d_model) * out

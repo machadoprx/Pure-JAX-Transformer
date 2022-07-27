@@ -6,7 +6,7 @@ from jax.nn import softmax
 def forward_train(inputs, params, hyper_params):
 	
 	input, mask_input, target, mask_target = inputs
-
+	
 	seq_len = len(input)
 	n_layers = hyper_params['num_layers']
 	hid_size = hyper_params['hid_size']
@@ -54,7 +54,7 @@ def forward_test(inputs, params, hyper_params, top_k=3):
 		out_token_id = jnp.argsort(logits)[-top_k:][::-1]
 		top_ks.append(out_token_id)
 		out_token_ids.append(out_token_id[0])
-		#if out_token_id[0] == 2: # id for EOS
-		#	break
+		if out_token_id[0] == 2: # id for EOS
+			break
 
 	return jnp.array(out_token_ids), jnp.array(top_ks)
