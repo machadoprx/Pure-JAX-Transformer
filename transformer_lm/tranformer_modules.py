@@ -17,12 +17,11 @@ def encoder_block(inputs, params, hyper_params, layer, training=True):
 def decoder_block(inputs, params, hyper_params, layer, training=True):
     
     tgt, tgt_mask, memory, memory_mask = inputs
-    #inputs_1 = [tgt, tgt, tgt, tgt_mask]
 
     ln1 = layer_norm(tgt, params, f'decoder_{layer}_ln_1', training=training, eps=hyper_params['eps'])
     mha_1, _ = multihead_attention([ln1, ln1, ln1, tgt_mask], params, hyper_params, f'decoder_{layer}_mha_1', training=training, causal=True)
     mha_1 = mha_1 + tgt
-    #inputs_2 = [mha_1, memory, memory, memory_mask]
+    
     ln2 = layer_norm(mha_1, params, f'decoder_{layer}_ln_2', training=training, eps=hyper_params['eps'])
     mha_2, _ = multihead_attention([ln2, memory, memory, memory_mask], params, hyper_params, f'decoder_{layer}_mha_2', training=training)
     mha_2 = mha_2 + mha_1
