@@ -69,6 +69,8 @@ def get_ds_chess_mov_lvl(voc, corpus, bs=8, min_len=8, max_len=64):
 		if seq_len < min_len:
 			i += 1
 			continue
+		if seq_len > max_len:
+			game = game[:max_len-4]
 		
 		moves = []
 		start = 0
@@ -78,32 +80,21 @@ def get_ds_chess_mov_lvl(voc, corpus, bs=8, min_len=8, max_len=64):
 				game[start:query]
 			)
 			start += query
-			query = np.random.randint(start, seq_len)
+			if start < seq_len:
+				query = np.random.randint(start, seq_len)
 
 		xt = []
 		yt = []
-		if len(moves) % 2 == 0:
-			m = 0
-			for k in range(len(moves)//2):
-				
-				m += 2
+		for k in range(len(moves)-1):
+			xt.append(np.array(voc.encode(' '.join(moves[k]))))
+			yt.append(np.array(voc.encode(' '.join(moves[k+1]))))
 
-		else:
-			pass
-		
+		xt = [np.pad(z, (0, max_len-len(z)), mode='constant') for z in xt]
+		yt = [np.pad(z, (0, max_len-len(z)), mode='constant') for z in yt]
 
-		xq = [corpus[k] for k in range(i, rq+i)]
-		i += rq
-		xa = [corpus[k] for k in range(i, ra+i)]
-		
-		xq = ' '.join(xq)
-		xa = ' '.join(xa)
-		xq = jnp.array(voc.encode(xq))
-		xa = jnp.array(voc.encode(xa))
-		xq = jnp.pad(xq, (0, max_len-len(xq)), mode='constant')
-		xa = jnp.pad(xa, (0, max_len-len(xa)), mode='constant')
-		X.append(xq)
-		y.append(xa)
+		X.extend(xt)
+		y.extend(yt)
+		i += 1
 
 	ds = list(zip(X, y)) 
 	remain = len(ds) % bs

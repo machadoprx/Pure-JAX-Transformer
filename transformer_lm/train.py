@@ -64,10 +64,16 @@ def debug():
 
 	#ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 	from vocabulary import Vocabulary
-	with open('cleaned_corpus.txt', 'r') as f:
-		corpus = f.readlines()[0]
-	voc = Vocabulary(corpus)
-	ds = get_ds_txt(voc, corpus, bs=bs, min_len=8, max_len=seq_len)
+	with open('chess_db.txt', 'r') as f:
+		corpus = f.readlines()[:5000]
+	
+	plain_corpus = []
+	for line in corpus:
+		plain_corpus.extend(line.split(' '))
+	plain_corpus = ' '.join(plain_corpus)
+
+	voc = Vocabulary(plain_corpus)
+	ds = get_ds_chess_mov_lvl(voc, corpus, bs=bs, min_len=8, max_len=seq_len)
 	vocab_size = len(voc.voc.keys())
 	
 	#print(ds[0][0][0])

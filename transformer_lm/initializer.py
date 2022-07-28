@@ -31,7 +31,6 @@ def get_ln_params(hid_size):
 	beta = jnp.zeros((1,hid_size))
 	return {'gamma':gamma, 'beta':beta}
 
-#TODO add trainable dict of bools for grad prop 
 def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
 	hyper_params = {
 		'num_layers':num_layers,

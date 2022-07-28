@@ -9,7 +9,7 @@ class Vocabulary:
 
     def encode(self, sent: str):
         tokens = sent.split(' ')
-        tokens = [self.voc[word] for word in tokens]
+        tokens = [self.voc[word] if word in self.voc else 0 for word in tokens]
         tokens = [self.voc['<BOS>']] + tokens + [self.voc['<EOS>']]
         return tokens
 
