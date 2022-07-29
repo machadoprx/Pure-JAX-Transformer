@@ -58,14 +58,14 @@ def debug():
 	ff_dim = hid_size * 4
 	#in_feats = 128
 	bs = 8
-	n_layers = 4
+	n_layers = 1
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
 	#ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 	from vocabulary import Vocabulary
 	with open('chess_db.txt', 'r') as f:
-		corpus = f.readlines()[:5000]
+		corpus = f.readlines()[:12000]
 	
 	plain_corpus = []
 	for line in corpus:

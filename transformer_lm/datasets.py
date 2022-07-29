@@ -99,6 +99,6 @@ def get_ds_chess_mov_lvl(voc, corpus, bs=8, min_len=8, max_len=64):
 	ds = list(zip(X, y)) 
 	remain = len(ds) % bs
 	ds = ds[:-remain]
-	ds = jnp.asarray(ds).reshape((len(ds)//bs, bs, 2, max_len))
+	ds = np.asarray(ds).reshape((len(ds)//bs, bs, 2, max_len))
 
 	return ds

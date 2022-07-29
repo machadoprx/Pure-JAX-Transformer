@@ -1,7 +1,10 @@
+from lib2to3.pgen2 import token
+import numpy as np
+
 class Vocabulary:
     def __init__(self, corpus) -> None:
         tokens = list(set(corpus.split(' ')))
-        self.voc = {'<PAD>':0,'<BOS>':1,'<EOS>':2}
+        self.voc = {'<PAD>':0,'<SEP>':1,'<MASK>':2}
         
         for k in range(len(tokens)):
             self.voc[tokens[k]] = k + 3
@@ -10,7 +13,15 @@ class Vocabulary:
     def encode(self, sent: str):
         tokens = sent.split(' ')
         tokens = [self.voc[word] if word in self.voc else 0 for word in tokens]
-        tokens = [self.voc['<BOS>']] + tokens + [self.voc['<EOS>']]
+        #tokens = [self.voc['<BOS>']] + tokens + [self.voc['<EOS>']]
+        return tokens
+
+    def encode_masked(self, sent: str):
+        tokens = sent.split(' ')
+        tokens = np.array([self.voc[word] if word in self.voc else 0 for word in tokens])
+        mask = (np.random.rand(tokens.shape[0]))
+        tokens = (mask < 0.15) * tokens
+        #tokens = [self.voc['<BOS>']] + tokens + [self.voc['<EOS>']]
         return tokens
 
     def decode(self, tokens) -> str:
