@@ -35,5 +35,4 @@ def forward_test(inputs, params, hyper_params):
 		out_enc = encoder_block([out_enc, mask_input], params, hyper_params, i, training=False)
 	
 	out = jnp.matmul(out_enc, params['embed'])
-	#masked_tokens = jnp.where(jnp.logical_or(input == 2, input == 1))
 	return jnp.argmax(out, axis=-1)

@@ -27,6 +27,16 @@ def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epo
 		k = 0
 		for batch in tqdm(batched_inputs, total=len(batched_inputs)):
 			x, target = batch[:, 0], batch[:, 1]
+			mask = np.random.rand(*x.shape) < 0.15
+			mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
+			mask_skip = np.logical_not(mask_skip)
+			#print(mask_skip)
+			#print(x)
+			mask = np.logical_and(mask, mask_skip)
+			#print(mask)
+			x = np.where(mask, voc.voc['<MASK>'], x)
+			
+			#quit()
 			loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0], None, None, None)) \
 																	([x, target], params, hyper_params, vocab_size)
 			epoch_loss += jnp.mean(loss)
@@ -34,10 +44,17 @@ def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epo
 			params, state = adamax(params, grads, state, step, lr=lr)
 			if k % 100 == 0:
 				print(epoch_loss/k)
+				## aqui
 				x = batched_inputs[np.random.randint(0, len(batched_inputs))][0][0]
+				mask = np.random.rand(*x.shape) < 0.15
+				mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
+				mask_skip = np.logical_not(mask_skip)
+				mask = np.logical_and(mask, mask_skip)
+				x = np.where(mask, voc.voc['<MASK>'], x)
 				mask_input = x == 0
 				mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
 				print(voc.decode(list(np.array(x))))
+				print('\n\n')
 				print(voc.decode(list(np.array(forward_test([x, mask_input], params, hyper_params)))))
 				f = open('params.pkl', 'wb'); pickle.dump(params,f); f.close()
 				f = open('state.pkl', 'wb'); pickle.dump(state,f); f.close()
@@ -48,8 +65,8 @@ def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epo
 		
 def debug():
 	num_heads = 8
-	seq_len = 128
-	dk = 128
+	seq_len = 512
+	dk = 512
 	dv = dk
 	hid_size = dk
 	
@@ -58,14 +75,14 @@ def debug():
 	ff_dim = hid_size * 4
 	#in_feats = 128
 	bs = 8
-	n_layers = 1
+	n_layers = 6
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
 	#ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 	from vocabulary import Vocabulary
 	with open('chess_db.txt', 'r') as f:
-		corpus = f.readlines()[:400]
+		corpus = f.readlines()[:12000]
 	corpus = [line[:-1] for line in corpus]
 
 	plain_corpus = []
@@ -105,13 +122,13 @@ def debug():
 	k = 79
 
 	#x = [1, 25, 26, 27, 28, 29, 30, 31, 32, 33, 2, 0, 0, 0, 0, 0]
-	x = jnp.array(voc.encode('aureliano então'))
+	x = jnp.array(voc.encode('1. <MASK>'))
 	x = jnp.pad(x, (0, seq_len-len(x)), mode='constant')
 	mask_input = x == 0
 	mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
 	#print(mask_input)
 
 	print(voc.decode(list(np.array(x))))
-	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params)[0])))
+	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params))))
 	
 debug()

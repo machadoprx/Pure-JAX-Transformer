@@ -73,8 +73,9 @@ def get_ds_chess_mov_lvl(voc, corpus, bs=8, max_len=512):
 				game = corpus[i][:(max_len-len(xt)-2)]
 			else:
 				game = corpus[i]
-			xt += list(voc.encode_masked(game))
-			yt += list(voc.encode(game))
+			encoded = list(voc.encode(game))
+			xt += encoded
+			yt += encoded
 			i += 1
 
 		xt = np.array(xt)
