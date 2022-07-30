@@ -13,7 +13,7 @@ from datasets import *
 import pickle
 
 def train_step(inputs, params, hyper_params, vocab_size):
-	return lm_loss_fn(inputs, params, hyper_params, forward_train, vocab_size)
+	return mlm_loss_fn(inputs, params, hyper_params, forward_train, vocab_size)
 
 def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epochs, lr,seq_len):
 	
@@ -38,7 +38,7 @@ def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epo
 				mask_input = x == 0
 				mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
 				print(voc.decode(list(np.array(x))))
-				print(voc.decode(list(np.array(forward_test([x, mask_input], params, hyper_params)[0]))))
+				print(voc.decode(list(np.array(forward_test([x, mask_input], params, hyper_params)))))
 				f = open('params.pkl', 'wb'); pickle.dump(params,f); f.close()
 				f = open('state.pkl', 'wb'); pickle.dump(state,f); f.close()
 			k += 1
@@ -49,7 +49,7 @@ def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epo
 def debug():
 	num_heads = 8
 	seq_len = 128
-	dk = 512
+	dk = 128
 	dv = dk
 	hid_size = dk
 	
@@ -65,15 +65,17 @@ def debug():
 	#ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 	from vocabulary import Vocabulary
 	with open('chess_db.txt', 'r') as f:
-		corpus = f.readlines()[:12000]
-	
+		corpus = f.readlines()[:400]
+	corpus = [line[:-1] for line in corpus]
+
 	plain_corpus = []
 	for line in corpus:
 		plain_corpus.extend(line.split(' '))
 	plain_corpus = ' '.join(plain_corpus)
-
+	
+	#print(plain_corpus); quit()
 	voc = Vocabulary(plain_corpus)
-	ds = get_ds_chess_mov_lvl(voc, corpus, bs=bs, min_len=8, max_len=seq_len)
+	ds = get_ds_chess_mov_lvl(voc, corpus, bs=bs,max_len=seq_len)
 	vocab_size = len(voc.voc.keys())
 	
 	#print(ds[0][0][0])

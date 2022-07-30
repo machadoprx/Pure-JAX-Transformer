@@ -58,47 +58,42 @@ def get_ds_txt(voc, corpus, bs=8, min_len=8, max_len=128):
 
 	return ds
 
-def get_ds_chess_mov_lvl(voc, corpus, bs=8, min_len=8, max_len=64):
+def get_ds_chess_mov_lvl(voc, corpus, bs=8, max_len=512):
 
 	i = 0
 	X = []
 	y = []
 	while i < len(corpus):
-		game = corpus[i].split(' ')
-		seq_len = len(game)
-		if seq_len < min_len:
-			i += 1
-			continue
-		if seq_len > max_len:
-			game = game[:max_len-4]
-		
-		moves = []
-		start = 0
-		query = np.random.randint(1, seq_len//2)
-		while start < seq_len:
-			moves.append(
-				game[start:query]
-			)
-			start += query
-			if start < seq_len:
-				query = np.random.randint(start, seq_len)
-
 		xt = []
 		yt = []
-		for k in range(len(moves)-1):
-			xt.append(np.array(voc.encode(' '.join(moves[k]))))
-			yt.append(np.array(voc.encode(' '.join(moves[k+1]))))
 
-		xt = [np.pad(z, (0, max_len-len(z)), mode='constant') for z in xt]
-		yt = [np.pad(z, (0, max_len-len(z)), mode='constant') for z in yt]
+		while i < len(corpus) and (len(xt) + len(voc.encode(corpus[i]))) < max_len:
+			game = None
+			if (len(xt) + len(voc.encode(corpus[i]))) < max_len:
+				game = corpus[i][:(max_len-len(xt)-2)]
+			else:
+				game = corpus[i]
+			xt += list(voc.encode_masked(game))
+			yt += list(voc.encode(game))
+			i += 1
 
-		X.extend(xt)
-		y.extend(yt)
+		xt = np.array(xt)
+		yt = np.array(yt)
+
+		xt = np.pad(xt, (0, max_len-len(xt)), mode='constant')
+		yt = np.pad(yt, (0, max_len-len(yt)), mode='constant')
+
+		#print(voc.decode(xt))
+		X.append(xt)
+		y.append(yt)
 		i += 1
 
 	ds = list(zip(X, y)) 
 	remain = len(ds) % bs
-	ds = ds[:-remain]
-	ds = np.asarray(ds).reshape((len(ds)//bs, bs, 2, max_len))
-
+	
+	ds = ds[:len(ds)-remain]
+	print(len(ds)%bs)
+	ds = jnp.asarray(ds, dtype=jnp.int32).reshape((len(ds)//bs, bs, 2, max_len))
+	print(ds.shape)
+	
 	return ds

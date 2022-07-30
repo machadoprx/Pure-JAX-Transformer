@@ -55,7 +55,7 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 		params[f'encoder_{i}_ln_1'] = params_ln_enc_1
 		params[f'encoder_{i}_ln_2'] = params_ln_enc_2
 
-		rng, params_mha_dec_1 = get_mha_params(rng, dk, dv, hid_size, num_heads)
+		'''rng, params_mha_dec_1 = get_mha_params(rng, dk, dv, hid_size, num_heads)
 		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, hid_size, hid_size, num_heads)
 		rng, params_ff_block_dec = get_ff_block_params(rng, hid_size, ff_dim)
 		params_ln_dec_1 = get_ln_params(hid_size)
@@ -67,7 +67,7 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 		params[f'decoder_{i}_ff_block'] = params_ff_block_dec
 		params[f'decoder_{i}_ln_1'] = params_ln_dec_1
 		params[f'decoder_{i}_ln_2'] = params_ln_dec_2
-		params[f'decoder_{i}_ln_3'] = params_ln_dec_3
+		params[f'decoder_{i}_ln_3'] = params_ln_dec_3'''
 
 	return params, hyper_params
 
