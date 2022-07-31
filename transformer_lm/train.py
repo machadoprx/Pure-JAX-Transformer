@@ -30,13 +30,8 @@ def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epo
 			mask = np.random.rand(*x.shape) < 0.15
 			mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
 			mask_skip = np.logical_not(mask_skip)
-			#print(mask_skip)
-			#print(x)
 			mask = np.logical_and(mask, mask_skip)
-			#print(mask)
 			x = np.where(mask, voc.voc['<MASK>'], x)
-			
-			#quit()
 			loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0], None, None, None)) \
 																	([x, target], params, hyper_params, vocab_size)
 			epoch_loss += jnp.mean(loss)
@@ -44,7 +39,6 @@ def train_loop(batched_inputs, params, hyper_params, state, voc, vocab_size, epo
 			params, state = adamax(params, grads, state, step, lr=lr)
 			if k % 100 == 0:
 				print(epoch_loss/k)
-				## aqui
 				x = batched_inputs[np.random.randint(0, len(batched_inputs))][0][0]
 				mask = np.random.rand(*x.shape) < 0.15
 				mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
@@ -79,7 +73,6 @@ def debug():
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
-	#ds = get_sample_ds(size=16384, seq_len=seq_len, vocab_size=vocab_size, bs=bs)
 	from vocabulary import Vocabulary
 	with open('chess_db.txt', 'r') as f:
 		corpus = f.readlines()[:12000]
@@ -90,16 +83,11 @@ def debug():
 		plain_corpus.extend(line.split(' '))
 	plain_corpus = ' '.join(plain_corpus)
 	
-	#print(plain_corpus); quit()
 	voc = Vocabulary(plain_corpus)
 	ds = get_ds_chess_mov_lvl(voc, corpus, bs=bs,max_len=seq_len)
 	vocab_size = len(voc.voc.keys())
 	
-	#print(ds[0][0][0])
-	#print(ds.shape)
-	#quit()
-
-	params, hyper_params = get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, n_layers, vocab_size)
+	params, hyper_params = get_transformer_params(rng, hid_size, ff_dim, num_heads, n_layers, vocab_size)
 	leaves, tree = jax.tree_util.tree_flatten(params)
 	state = [jnp.zeros_like(p) for p in leaves]
 	state = jax.tree_util.tree_unflatten(tree, state)
@@ -110,14 +98,8 @@ def debug():
 	print(hyper_params)
 	rng, subkey = jax.random.split(rng)
 
-	#params = pickle.load(open('params.pkl', 'rb'))
-	#state = pickle.load(open('state.pkl', 'rb'))
 	params = train_loop(ds, params, hyper_params, state, voc, vocab_size, epochs, lr, seq_len)
 	
-
-	#params = pickle.load(open('data.obj', 'rb'))
-	#print(params)
-
 	seq_pred = []
 	k = 79
 

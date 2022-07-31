@@ -14,8 +14,8 @@ def adamax(params, grads, state, step, lr=1e-4, delta1=0.9, delta2=0.999):
         grad = jnp.mean(grad, axis=0)
         state_mom = delta1 * state_mom + (1. - delta1) * grad
         state_inf = jnp.maximum(delta2 * state_inf, jnp.abs(grad))
-        moment = state_mom / (1. - delta1**(step+1))
-        param = param - ((lr / (jnp.sqrt(state_inf) + eps)) * moment)
+        curr_lr = lr / (1. - delta1**(step+1))
+        param = param - ((curr_lr * state_mom) / (state_inf + eps))
 
         params_flat[i] = param
         state_mom_flat[i] = state_mom

@@ -15,7 +15,7 @@ def mlm_loss_fn(inputs, params, hyper_params, forward_fn, vocab_size: int) -> jn
     assert logits.shape == targets.shape
 
     loss = -jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1)
-    loss = jnp.sum(loss * mask_target) / (jnp.sum(mask_target) + 1e-6)
+    loss = jnp.sum(loss * mask_target) / jnp.sum(mask_target)
 
     return loss
 

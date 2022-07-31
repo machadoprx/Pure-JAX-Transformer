@@ -17,7 +17,7 @@ def get_ff_block_params(rng, in_feat, out_feat):
 	rng, _ = jax.random.split(rng)
 	return rng, {'W1':w1, 'W2':w2, 'b1':b1, 'b2':b2}
 
-def get_mha_params(rng, dk, dv, out_features, num_heads):
+def get_mha_params(rng, out_features, num_heads):
 	wqkv_dim = out_features//num_heads
 	rng, WQs, _ = get_linear_params(rng, out_features, num_heads * wqkv_dim, bias=False)
 	rng, WKs, _ = get_linear_params(rng, out_features, num_heads * wqkv_dim, bias=False)
@@ -31,7 +31,7 @@ def get_ln_params(hid_size):
 	beta = jnp.zeros((1,hid_size))
 	return {'gamma':gamma, 'beta':beta}
 
-def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
+def get_transformer_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
 	hyper_params = {
 		'num_layers':num_layers,
 		'num_heads':num_heads,
@@ -46,7 +46,7 @@ def get_transformer_params(rng, seq_len, dk, dv, hid_size, ff_dim, num_heads, nu
 	params['embed'] = init(subkey, (hid_size, vocab_size), jnp.float32)
 
 	for i in range(num_layers):
-		rng, params_mha_enc = get_mha_params(rng, dk, dv, hid_size, num_heads)
+		rng, params_mha_enc = get_mha_params(rng, hid_size, num_heads)
 		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_dim)
 		params_ln_enc_1 = get_ln_params(hid_size)
 		params_ln_enc_2 = get_ln_params(hid_size)
