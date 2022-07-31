@@ -93,8 +93,6 @@ def get_ds_chess_mov_lvl(voc, corpus, bs=8, max_len=512):
 	remain = len(ds) % bs
 	
 	ds = ds[:len(ds)-remain]
-	print(len(ds)%bs)
 	ds = jnp.asarray(ds, dtype=jnp.int32).reshape((len(ds)//bs, bs, 2, max_len))
-	print(ds.shape)
 	
 	return ds
