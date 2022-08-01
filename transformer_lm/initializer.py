@@ -31,7 +31,7 @@ def get_ln_params(hid_size):
 	beta = jnp.zeros((1,hid_size))
 	return {'gamma':gamma, 'beta':beta}
 
-def get_transformer_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
+def get_mlm_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
 	hyper_params = {
 		'num_layers':num_layers,
 		'num_heads':num_heads,
@@ -55,7 +55,33 @@ def get_transformer_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_s
 		params[f'encoder_{i}_ln_1'] = params_ln_enc_1
 		params[f'encoder_{i}_ln_2'] = params_ln_enc_2
 
-		'''rng, params_mha_dec_1 = get_mha_params(rng, dk, dv, hid_size, num_heads)
+	return params, hyper_params
+
+def get_lm_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
+	hyper_params = {
+		'num_layers':num_layers,
+		'num_heads':num_heads,
+		'rate':rate,
+		'eps':eps,
+		'hid_size':hid_size
+	}
+	rng, subkey = jax.random.split(rng)
+	init = jax.nn.initializers.glorot_normal()
+
+	params = {}
+	params['embed'] = init(subkey, (hid_size, vocab_size), jnp.float32)
+
+	for i in range(num_layers):
+		rng, params_mha_enc = get_mha_params(rng, hid_size, num_heads)
+		rng, params_ff_block_enc = get_ff_block_params(rng, hid_size, ff_dim)
+		params_ln_enc_1 = get_ln_params(hid_size)
+		params_ln_enc_2 = get_ln_params(hid_size)
+		params[f'encoder_{i}_mha'] = params_mha_enc
+		params[f'encoder_{i}_ff_block'] = params_ff_block_enc
+		params[f'encoder_{i}_ln_1'] = params_ln_enc_1
+		params[f'encoder_{i}_ln_2'] = params_ln_enc_2
+
+		rng, params_mha_dec_1 = get_mha_params(rng, hid_size, num_heads)
 		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, hid_size, hid_size, num_heads)
 		rng, params_ff_block_dec = get_ff_block_params(rng, hid_size, ff_dim)
 		params_ln_dec_1 = get_ln_params(hid_size)
@@ -67,7 +93,7 @@ def get_transformer_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_s
 		params[f'decoder_{i}_ff_block'] = params_ff_block_dec
 		params[f'decoder_{i}_ln_1'] = params_ln_dec_1
 		params[f'decoder_{i}_ln_2'] = params_ln_dec_2
-		params[f'decoder_{i}_ln_3'] = params_ln_dec_3'''
+		params[f'decoder_{i}_ln_3'] = params_ln_dec_3
 
 	return params, hyper_params
 

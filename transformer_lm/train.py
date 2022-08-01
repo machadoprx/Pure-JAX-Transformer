@@ -8,6 +8,7 @@ from forward import *
 from loss import *
 from layers import *
 from adamax import *
+from vocabulary import Vocabulary
 from tqdm import tqdm
 from datasets import *
 import pickle
@@ -66,7 +67,7 @@ def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, 
 
 	return params
 		
-def debug():
+def debug_train():
 	num_heads = 8
 	seq_len = 512
 	dk = 512
@@ -76,15 +77,13 @@ def debug():
 	epochs = 60
 	lr = 5e-3
 	ff_dim = hid_size * 4
-	#in_feats = 128
 	bs = 8
 	n_layers = 6
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
-	from vocabulary import Vocabulary
 	with open('chess_db.txt', 'r') as f:
-		corpus = f.readlines()[:12000]
+		corpus = f.readlines()[:20000]
 	corpus = [line[:-1] for line in corpus]
 
 	plain_corpus = []
@@ -99,7 +98,10 @@ def debug():
 	ds_train = ds[:int(len(ds)*0.8)]
 	ds_test = ds[int(len(ds)*0.8):]
 
-	params, hyper_params = get_transformer_params(rng, hid_size, ff_dim, num_heads, n_layers, vocab_size)
+	params, hyper_params = get_mlm_params(rng, hid_size, ff_dim, num_heads, n_layers, vocab_size)
+	f = open('voc.pkl', 'wb'); pickle.dump(voc,f); f.close()
+	f = open('hyper_params.pkl', 'wb'); pickle.dump(hyper_params,f); f.close()
+
 	leaves, tree = jax.tree_util.tree_flatten(params)
 	state = [jnp.zeros_like(p) for p in leaves]
 	state = jax.tree_util.tree_unflatten(tree, state)
@@ -110,23 +112,34 @@ def debug():
 	print(hyper_params)
 	rng, subkey = jax.random.split(rng)
 
-	#params = pickle.load(open('params.pkl', 'rb'))
-	#state = pickle.load(open('state.pkl', 'rb'))
-	#print(params)
 	params = train_loop(ds_train, ds_test, params, hyper_params, state, voc, vocab_size, epochs, lr, seq_len)
-	
-	seq_pred = []
-	k = 79
 
-	
-	x = ds[k][0][0]
-	#x = jnp.array(voc.encode(x))
-	#x = jnp.pad(x, (0, seq_len-len(x)), mode='constant')
+def debug_test():
+	seq_len = 512
+
+	with open('chess_db.txt', 'r') as f:
+		corpus = f.readlines()[:20000]
+	corpus = [line[:-1] for line in corpus]
+
+	voc = pickle.load(open('voc.pkl', 'rb'))
+	params = pickle.load(open('params.pkl', 'rb'))
+	hyper_params = pickle.load(open('hyper_params.pkl', 'rb'))
+	#state = pickle.load(open('state.pkl', 'rb'))
+
+	x = corpus[4]
+	x = voc.encode(x)
+	x = np.pad(x, (0, seq_len-len(x)), mode='constant')
+	mask = np.random.rand(*x.shape) < 0.15
+	mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
+	mask_skip = np.logical_not(mask_skip)
+	mask = np.logical_and(mask, mask_skip)
+	x = np.where(mask, voc.voc['<MASK>'], x)
+
 	mask_input = x == 0
 	mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
-	#print(mask_input)
-
-	print(voc.decode(list(np.array(x))))
-	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params))))
 	
-debug()
+	print(voc.decode(list(np.array(x)))[:256])
+	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params)))[:256])
+
+
+debug_test()
