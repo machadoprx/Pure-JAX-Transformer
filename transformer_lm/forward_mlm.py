@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 from layers import *
 from tranformer_modules import *
-from jax.nn import softmax
 
 def forward_train(inputs, params, hyper_params):
 	

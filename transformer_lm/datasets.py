@@ -58,7 +58,7 @@ def get_ds_txt(voc, corpus, bs=8, min_len=8, max_len=128):
 
 	return ds
 
-def get_ds_chess_mov_lvl(voc, corpus, bs=8, max_len=512):
+def get_ds_chess_mov_lvl_mlm(voc, corpus, bs=8, max_len=512):
 
 	i = 0
 	X = []

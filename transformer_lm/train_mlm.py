@@ -4,7 +4,7 @@ import numpy as np
 from jax import vmap
 from initializer import *
 from tranformer_modules import *
-from forward import *
+from forward_mlm import *
 from loss import *
 from layers import *
 from adamax import *
@@ -20,7 +20,8 @@ def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, 
 	
 	step = 0
 	e = 0
-	patience = 5
+	patience = 10
+	mask_ratio = 0.2
 	early_stop_flag = 0
 	old_loss = float('inf')
 
@@ -31,7 +32,7 @@ def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, 
 		k = 0
 		for batch in tqdm(batched_inputs, total=len(batched_inputs)):
 			x, target = batch[:, 0], batch[:, 1]
-			mask = np.random.rand(*x.shape) < 0.15
+			mask = np.random.rand(*x.shape) < mask_ratio
 			mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
 			mask_skip = np.logical_not(mask_skip)
 			mask = np.logical_and(mask, mask_skip)
@@ -47,7 +48,7 @@ def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, 
 		val_loss = 0.
 		for batch in tqdm(batched_inputs_val, total=len(batched_inputs_val)):
 			x, target = batch[:, 0], batch[:, 1]
-			mask = np.random.rand(*x.shape) < 0.15
+			mask = np.random.rand(*x.shape) < mask_ratio
 			mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
 			mask_skip = np.logical_not(mask_skip)
 			mask = np.logical_and(mask, mask_skip)
@@ -92,13 +93,13 @@ def debug_train():
 	plain_corpus = ' '.join(plain_corpus)
 	
 	voc = Vocabulary(plain_corpus)
-	ds = get_ds_chess_mov_lvl(voc, corpus, bs=bs,max_len=seq_len)
+	ds = get_ds_chess_mov_lvl_mlm(voc, corpus, bs=bs,max_len=seq_len)
 	vocab_size = len(voc.voc.keys())
 	
 	ds_train = ds[:int(len(ds)*0.8)]
 	ds_test = ds[int(len(ds)*0.8):]
 
-	params, hyper_params = get_mlm_params(rng, hid_size, ff_dim, num_heads, n_layers, vocab_size)
+	params, hyper_params = get_mlm_params(rng, seq_len, hid_size, ff_dim, num_heads, n_layers, vocab_size)
 	f = open('voc.pkl', 'wb'); pickle.dump(voc,f); f.close()
 	f = open('hyper_params.pkl', 'wb'); pickle.dump(hyper_params,f); f.close()
 
@@ -115,7 +116,7 @@ def debug_train():
 	params = train_loop(ds_train, ds_test, params, hyper_params, state, voc, vocab_size, epochs, lr, seq_len)
 
 def debug_test():
-	seq_len = 512
+	
 
 	with open('chess_db.txt', 'r') as f:
 		corpus = f.readlines()[:20000]
@@ -124,6 +125,7 @@ def debug_test():
 	voc = pickle.load(open('voc.pkl', 'rb'))
 	params = pickle.load(open('params.pkl', 'rb'))
 	hyper_params = pickle.load(open('hyper_params.pkl', 'rb'))
+	seq_len = hyper_params['max_len']
 	#state = pickle.load(open('state.pkl', 'rb'))
 
 	x = corpus[4]
@@ -142,4 +144,4 @@ def debug_test():
 	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params)))[:256])
 
 
-debug_test()
+debug_train()

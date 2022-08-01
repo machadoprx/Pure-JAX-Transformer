@@ -6,7 +6,7 @@ def mlm_loss_fn(inputs, params, hyper_params, forward_fn, vocab_size: int) -> jn
     x, targets = inputs
     mask_x = x == 0
 
-    mask_target = x >= 1
+    mask_target = x == 2
 
     logits = forward_fn([x, mask_x], params, hyper_params)
     

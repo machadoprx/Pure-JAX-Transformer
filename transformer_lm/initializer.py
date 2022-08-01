@@ -31,13 +31,14 @@ def get_ln_params(hid_size):
 	beta = jnp.zeros((1,hid_size))
 	return {'gamma':gamma, 'beta':beta}
 
-def get_mlm_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
+def get_mlm_params(rng, max_len, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
 	hyper_params = {
 		'num_layers':num_layers,
 		'num_heads':num_heads,
 		'rate':rate,
 		'eps':eps,
-		'hid_size':hid_size
+		'hid_size':hid_size,
+		'max_len':max_len
 	}
 	rng, subkey = jax.random.split(rng)
 	init = jax.nn.initializers.glorot_normal()
