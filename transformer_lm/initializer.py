@@ -58,13 +58,14 @@ def get_mlm_params(rng, max_len, hid_size, ff_dim, num_heads, num_layers, vocab_
 
 	return params, hyper_params
 
-def get_lm_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
+def get_lm_params(rng, max_len, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate=0.2, eps=1e-7):
 	hyper_params = {
 		'num_layers':num_layers,
 		'num_heads':num_heads,
 		'rate':rate,
 		'eps':eps,
-		'hid_size':hid_size
+		'hid_size':hid_size,
+		'max_len':max_len
 	}
 	rng, subkey = jax.random.split(rng)
 	init = jax.nn.initializers.glorot_normal()
@@ -83,7 +84,7 @@ def get_lm_params(rng, hid_size, ff_dim, num_heads, num_layers, vocab_size, rate
 		params[f'encoder_{i}_ln_2'] = params_ln_enc_2
 
 		rng, params_mha_dec_1 = get_mha_params(rng, hid_size, num_heads)
-		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, hid_size, hid_size, num_heads)
+		rng, params_mha_dec_2 = get_mha_params(rng, hid_size, num_heads)
 		rng, params_ff_block_dec = get_ff_block_params(rng, hid_size, ff_dim)
 		params_ln_dec_1 = get_ln_params(hid_size)
 		params_ln_dec_2 = get_ln_params(hid_size)

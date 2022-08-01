@@ -96,3 +96,36 @@ def get_ds_chess_mov_lvl_mlm(voc, corpus, bs=8, max_len=512):
 	ds = jnp.asarray(ds, dtype=jnp.int32).reshape((len(ds)//bs, bs, 2, max_len))
 	
 	return ds
+
+def get_ds_chess_mov_lvl_lm(voc, corpus, bs=8, min_len=8, max_len=128):
+
+	i = 0
+	X = []
+	y = []
+	while i < len(corpus):
+		game = corpus[i].split(' ')
+		seq_len = len(game)
+		if seq_len < min_len:
+			i += 1
+			continue
+		if seq_len > max_len - 2:
+			game = game[:max_len-2]
+			seq_len = len(game)
+		
+		end = np.random.randint(1, seq_len//2)
+		xt = np.array(voc.encode(' '.join(game[:end])))
+		yt = np.array(voc.encode(' '.join(game)))
+		
+		xt = np.pad(xt, (0, max_len-len(xt)), mode='constant')
+		yt = np.pad(yt, (0, max_len-len(yt)), mode='constant')
+
+		X.append(xt)
+		y.append(yt)
+		i += 1
+
+	ds = list(zip(X, y)) 
+	remain = len(ds) % bs
+	ds = ds[:-remain]
+	ds = jnp.asarray(ds).reshape((len(ds)//bs, bs, 2, max_len))
+
+	return ds

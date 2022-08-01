@@ -4,7 +4,7 @@ import numpy as np
 from jax import vmap
 from initializer import *
 from tranformer_modules import *
-from forward_mlm import *
+from forward_lm import *
 from loss import *
 from layers import *
 from adamax import *
@@ -14,14 +14,13 @@ from datasets import *
 import pickle
 
 def train_step(inputs, params, hyper_params, vocab_size):
-	return mlm_loss_fn(inputs, params, hyper_params, forward_train, vocab_size)
+	return lm_loss_fn(inputs, params, hyper_params, forward_train, vocab_size)
 
 def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, voc, vocab_size, epochs, lr,seq_len):
 	
 	step = 0
 	e = 0
 	patience = 10
-	mask_ratio = 0.15
 	early_stop_flag = 0
 	old_loss = float('inf')
 
@@ -31,11 +30,6 @@ def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, 
 		batched_inputs = jax.random.permutation(jax.random.PRNGKey(np.random.randint(3000)), batched_inputs)
 		for batch in tqdm(batched_inputs, total=len(batched_inputs)):
 			x, target = batch[:, 0], batch[:, 1]
-			mask = np.random.rand(*x.shape) < mask_ratio
-			mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
-			mask_skip = np.logical_not(mask_skip)
-			mask = np.logical_and(mask, mask_skip)
-			x = np.where(mask, voc.voc['<MASK>'], x)
 			loss, grads = vmap(jax.value_and_grad(train_step, 1, allow_int=True), in_axes=([0, 0], None, None, None)) \
 																	([x, target], params, hyper_params, vocab_size)
 			epoch_loss += jnp.mean(loss)
@@ -46,11 +40,6 @@ def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, 
 		val_loss = 0.
 		for batch in tqdm(batched_inputs_val, total=len(batched_inputs_val)):
 			x, target = batch[:, 0], batch[:, 1]
-			mask = np.random.rand(*x.shape) < mask_ratio
-			mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
-			mask_skip = np.logical_not(mask_skip)
-			mask = np.logical_and(mask, mask_skip)
-			x = np.where(mask, voc.voc['<MASK>'], x)
 			loss = vmap(train_step, in_axes=([0, 0], None, None, None)) \
 										([x, target], params, hyper_params, vocab_size)
 			val_loss += jnp.mean(loss)
@@ -68,7 +57,7 @@ def train_loop(batched_inputs, batched_inputs_val, params, hyper_params, state, 
 		
 def debug_train():
 	num_heads = 8
-	seq_len = 512
+	seq_len = 256
 	dk = 512
 	dv = dk
 	hid_size = dk
@@ -77,12 +66,12 @@ def debug_train():
 	lr = 5e-3
 	ff_dim = hid_size * 4
 	bs = 8
-	n_layers = 6
+	n_layers = 4
 	rng = jax.random.PRNGKey(42)
 	np.random.seed(42)
 
 	with open('chess_db.txt', 'r') as f:
-		corpus = f.readlines()[:20000]
+		corpus = f.readlines()[:5000]
 	corpus = [line[:-1] for line in corpus]
 
 	plain_corpus = []
@@ -91,13 +80,14 @@ def debug_train():
 	plain_corpus = ' '.join(plain_corpus)
 	
 	voc = Vocabulary(plain_corpus)
-	ds = get_ds_chess_mov_lvl_mlm(voc, corpus, bs=bs,max_len=seq_len)
+	ds = get_ds_chess_mov_lvl_lm(voc, corpus, bs=bs, min_len=8, max_len=seq_len)
 	vocab_size = len(voc.voc.keys())
 	
 	ds_train = ds[:int(len(ds)*0.8)]
 	ds_test = ds[int(len(ds)*0.8):]
 
-	params, hyper_params = get_mlm_params(rng, seq_len, hid_size, ff_dim, num_heads, n_layers, vocab_size)
+
+	params, hyper_params = get_lm_params(rng, seq_len, hid_size, ff_dim, num_heads, n_layers, vocab_size)
 	f = open('voc.pkl', 'wb'); pickle.dump(voc,f); f.close()
 	f = open('hyper_params.pkl', 'wb'); pickle.dump(hyper_params,f); f.close()
 
@@ -115,7 +105,6 @@ def debug_train():
 
 def debug_test():
 	
-
 	with open('chess_db.txt', 'r') as f:
 		corpus = f.readlines()[:20000]
 	corpus = [line[:-1] for line in corpus]
@@ -126,20 +115,16 @@ def debug_test():
 	seq_len = hyper_params['max_len']
 	#state = pickle.load(open('state.pkl', 'rb'))
 
-	x = corpus[3]
-	x = voc.encode(x)
+	x = corpus[4]
+	x = voc.encode(x)[:4]
+	x[-1] = 1
 	x = np.pad(x, (0, seq_len-len(x)), mode='constant')
-	mask = np.random.rand(*x.shape) < 0.15
-	mask_skip = np.logical_or(np.logical_or(x == voc.voc['<CLS>'], x == voc.voc['<SEP>']), x == voc.voc['<PAD>'])
-	mask_skip = np.logical_not(mask_skip)
-	mask = np.logical_and(mask, mask_skip)
-	x = np.where(mask, voc.voc['<MASK>'], x)
 
 	mask_input = x == 0
 	mask_input = jnp.where(mask_input, -1e9, jnp.zeros((seq_len,seq_len)))
 	
 	print(voc.decode(list(np.array(x)))[:512])
-	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params)))[:512])
+	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params)[0]))[:512])
 
 
 debug_test()
