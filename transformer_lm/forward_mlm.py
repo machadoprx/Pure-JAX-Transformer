@@ -20,7 +20,7 @@ def forward_train(inputs, params, hyper_params):
 
 	return out
 
-def forward_test(inputs, params, hyper_params):
+def forward_test(inputs, params, hyper_params, top_k=3):
 	
 	input, mask_input = inputs
 
@@ -33,5 +33,8 @@ def forward_test(inputs, params, hyper_params):
 	for i in range(n_layers):
 		out_enc = encoder_block([out_enc, mask_input], params, hyper_params, i, training=False)
 	
-	out = jnp.matmul(out_enc, params['embed'])
-	return jnp.argmax(out, axis=-1)
+	logits = jnp.matmul(out_enc, params['embed'])
+	
+	top_k_token_ids = jnp.argsort(logits, axis=-1)[:, -top_k:][:, ::-1]
+	out = jnp.argmax(logits, axis=-1)
+	return [out, top_k_token_ids]

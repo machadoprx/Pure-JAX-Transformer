@@ -112,7 +112,7 @@ def get_ds_chess_mov_lvl_lm(voc, corpus, bs=8, min_len=8, max_len=128):
 			game = game[:max_len-2]
 			seq_len = len(game)
 		
-		end = np.random.randint(1, seq_len//2)
+		end = np.random.randint(1, seq_len-4)
 		xt = np.array(voc.encode(' '.join(game[:end])))
 		yt = np.array(voc.encode(' '.join(game)))
 		
@@ -125,7 +125,6 @@ def get_ds_chess_mov_lvl_lm(voc, corpus, bs=8, min_len=8, max_len=128):
 
 	ds = list(zip(X, y)) 
 	remain = len(ds) % bs
-	ds = ds[:-remain]
+	ds = ds[:len(ds)-remain]
 	ds = jnp.asarray(ds).reshape((len(ds)//bs, bs, 2, max_len))
-
 	return ds

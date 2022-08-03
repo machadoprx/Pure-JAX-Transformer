@@ -71,7 +71,8 @@ def debug_train():
 	np.random.seed(42)
 
 	with open('chess_db.txt', 'r') as f:
-		corpus = f.readlines()[:5000]
+		corpus = f.readlines()
+		corpus = corpus[:50000]
 	corpus = [line[:-1] for line in corpus]
 
 	plain_corpus = []
@@ -85,7 +86,6 @@ def debug_train():
 	
 	ds_train = ds[:int(len(ds)*0.8)]
 	ds_test = ds[int(len(ds)*0.8):]
-
 
 	params, hyper_params = get_lm_params(rng, seq_len, hid_size, ff_dim, num_heads, n_layers, vocab_size)
 	f = open('voc.pkl', 'wb'); pickle.dump(voc,f); f.close()
@@ -115,7 +115,7 @@ def debug_test():
 	seq_len = hyper_params['max_len']
 	#state = pickle.load(open('state.pkl', 'rb'))
 
-	x = corpus[4]
+	x = corpus[5]
 	x = voc.encode(x)[:4]
 	x[-1] = 1
 	x = np.pad(x, (0, seq_len-len(x)), mode='constant')
@@ -127,4 +127,4 @@ def debug_test():
 	print(voc.decode(np.array(forward_test([x, mask_input], params, hyper_params)[0]))[:512])
 
 
-debug_test()
+debug_train()
