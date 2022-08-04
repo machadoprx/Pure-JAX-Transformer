@@ -14,7 +14,7 @@ def embed(inputs, params):
 	out = jnp.stack([(W[:, x] * jnp.sqrt(hid_size)) + pos_enc[i] for x, i in zip(seq, range(len(seq)))], axis=0)
 	return out
 
-#@partial(jax.jit, static_argnames=['training', 'causal', 'rate'])
+@partial(jax.jit, static_argnames=['training', 'causal', 'rate'])
 def scaled_dot_product_att(inputs, rate=0.2, training=True, causal=False):
 	Q, K, V, mask = inputs
 	dim = Q.shape[-1] # dim model!?

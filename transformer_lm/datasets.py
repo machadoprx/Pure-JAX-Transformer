@@ -58,7 +58,46 @@ def get_ds_txt(voc, corpus, bs=8, min_len=8, max_len=128):
 
 	return ds
 
-def get_ds_chess_mov_lvl(voc, corpus, bs=8, min_len=8, max_len=64):
+def get_ds_chess_mov_lvl_mlm(voc, corpus, bs=8, max_len=512):
+
+	i = 0
+	X = []
+	y = []
+	while i < len(corpus):
+		xt = []
+		yt = []
+
+		while i < len(corpus) and (len(xt) + len(voc.encode(corpus[i]))) < max_len:
+			game = None
+			if (len(xt) + len(voc.encode(corpus[i]))) < max_len:
+				game = corpus[i][:(max_len-len(xt)-2)]
+			else:
+				game = corpus[i]
+			encoded = list(voc.encode(game))
+			xt += encoded
+			yt += encoded
+			i += 1
+
+		xt = np.array(xt)
+		yt = np.array(yt)
+
+		xt = np.pad(xt, (0, max_len-len(xt)), mode='constant')
+		yt = np.pad(yt, (0, max_len-len(yt)), mode='constant')
+
+		#print(voc.decode(xt))
+		X.append(xt)
+		y.append(yt)
+		i += 1
+
+	ds = list(zip(X, y)) 
+	remain = len(ds) % bs
+	
+	ds = ds[:len(ds)-remain]
+	ds = jnp.asarray(ds, dtype=jnp.int32).reshape((len(ds)//bs, bs, 2, max_len))
+	
+	return ds
+
+def get_ds_chess_mov_lvl_lm(voc, corpus, bs=8, min_len=8, max_len=128):
 
 	i = 0
 	X = []
@@ -69,36 +108,23 @@ def get_ds_chess_mov_lvl(voc, corpus, bs=8, min_len=8, max_len=64):
 		if seq_len < min_len:
 			i += 1
 			continue
-		if seq_len > max_len:
-			game = game[:max_len-4]
+		if seq_len > max_len - 2:
+			game = game[:max_len-2]
+			seq_len = len(game)
 		
-		moves = []
-		start = 0
-		query = np.random.randint(1, seq_len//2)
-		while start < seq_len:
-			moves.append(
-				game[start:query]
-			)
-			start += query
-			if start < seq_len:
-				query = np.random.randint(start, seq_len)
+		end = np.random.randint(1, seq_len-4)
+		xt = np.array(voc.encode(' '.join(game[:end])))
+		yt = np.array(voc.encode(' '.join(game)))
+		
+		xt = np.pad(xt, (0, max_len-len(xt)), mode='constant')
+		yt = np.pad(yt, (0, max_len-len(yt)), mode='constant')
 
-		xt = []
-		yt = []
-		for k in range(len(moves)-1):
-			xt.append(np.array(voc.encode(' '.join(moves[k]))))
-			yt.append(np.array(voc.encode(' '.join(moves[k+1]))))
-
-		xt = [np.pad(z, (0, max_len-len(z)), mode='constant') for z in xt]
-		yt = [np.pad(z, (0, max_len-len(z)), mode='constant') for z in yt]
-
-		X.extend(xt)
-		y.extend(yt)
+		X.append(xt)
+		y.append(yt)
 		i += 1
 
 	ds = list(zip(X, y)) 
 	remain = len(ds) % bs
-	ds = ds[:-remain]
+	ds = ds[:len(ds)-remain]
 	ds = jnp.asarray(ds).reshape((len(ds)//bs, bs, 2, max_len))
-
 	return ds
